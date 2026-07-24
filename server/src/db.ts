@@ -147,6 +147,10 @@ export async function initDb() {
 
   saveDb();
 
+  // Migration: add new columns for existing databases
+  try { sqlDb.exec("ALTER TABLE gold_deals ADD COLUMN deal_type TEXT DEFAULT 'buy'"); saveDb(); } catch {}
+  try { sqlDb.exec("ALTER TABLE cash_payments ADD COLUMN payment_type TEXT DEFAULT 'payment'"); saveDb(); } catch {}
+
   // Create default admin user if not exists
   const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
   if (!admin) {

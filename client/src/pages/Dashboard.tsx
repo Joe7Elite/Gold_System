@@ -29,21 +29,31 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <RecentPanel title="آخر القطوعات" bg="bg-amber-50" titleColor="text-amber-800"
+        <RecentPanel title="آخر عمليات الدهب" bg="bg-amber-50" titleColor="text-amber-800"
           items={recent.deals} renderItem={(d: any) => (
             <div className="flex justify-between items-center text-sm">
               <div>
-                <div className="font-medium">{d.trader_name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{d.trader_name}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs ${d.deal_type === 'sell' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {d.deal_type === 'sell' ? 'بيع' : 'شراء'}
+                  </span>
+                </div>
                 <div className="text-gray-400">{fmtW(d.weight)} جم × {fmt(d.price_per_gram)}</div>
               </div>
-              <div className="text-amber-600 font-bold">{fmt(d.total_amount)} ج</div>
+              <div className={`font-bold ${d.deal_type === 'sell' ? 'text-green-600' : 'text-red-600'}`}>{fmt(d.total_amount)} ج</div>
             </div>
           )} />
-        <RecentPanel title="آخر المدفوعات" bg="bg-green-50" titleColor="text-green-800"
+        <RecentPanel title="آخر عمليات الفلوس" bg="bg-green-50" titleColor="text-green-800"
           items={recent.payments} renderItem={(p: any) => (
             <div className="flex justify-between items-center text-sm">
-              <div className="font-medium">{p.trader_name}</div>
-              <div className="text-green-600 font-bold">{fmt(p.amount)} ج</div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{p.trader_name}</span>
+                <span className={`px-1.5 py-0.5 rounded text-xs ${p.payment_type === 'loan' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                  {p.payment_type === 'loan' ? 'سلفة' : 'دفع'}
+                </span>
+              </div>
+              <div className={`font-bold ${p.payment_type === 'loan' ? 'text-red-600' : 'text-green-600'}`}>{fmt(p.amount)} ج</div>
             </div>
           )} />
         <RecentPanel title="آخر التحويلات" bg="bg-blue-50" titleColor="text-blue-800"

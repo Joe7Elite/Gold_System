@@ -6,12 +6,10 @@ import jwt from 'jsonwebtoken';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'gold-system-secret-2024';
 
-// ==== Types ====
 interface AuthRequest extends Request {
   user?: { id: number; username: string; role: string; full_name: string };
 }
 
-// ==== Middleware ====
 function auth(req: AuthRequest, res: Response, next: NextFunction): void {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) { res.status(401).json({ error: 'غير مصرح' }); return; }
@@ -28,7 +26,6 @@ function adminOnly(req: AuthRequest, res: Response, next: NextFunction): void {
   next();
 }
 
-// ==== Audit Helper ====
 function logAudit(userId: number, action: string, tableName: string, recordId: number, description: string, oldValues?: any, newValues?: any) {
   db.prepare(
     'INSERT INTO audit_log (user_id, action, table_name, record_id, description, old_values, new_values) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -40,13 +37,11 @@ router.post('/auth/login', (req: Request, res: Response): void => {
   const { username, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE username = ? AND is_active = 1').get(username) as any;
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-    res.status(401).json({ error: 'اسم المستخدم أو كلمة السر غلط' });
-    return;
+    res.status(401).json({ error: 'اسم المستخدم أو كلمة السر غلط' }); return;
   }
   const token = jwt.sign(
     { id: user.id, username: user.username, role: user.role, full_name: user.full_name },
-    JWT_SECRET,
-    { expiresIn: '24h' }
+    JWT_SECRET, { expiresIn: '24h' }
   );
   res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
 });
@@ -59,9 +54,9 @@ router.get('/auth/me', auth, (req: AuthRequest, res: Response): void => {
 router.get('/traders', auth, (_req: AuthRequest, res: Response): void => {
   const traders = db.prepare(`
     SELECT t.*,
-      COALESCE((SELECT SUM(gd.total_amount) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as total_deals,
-      COALESCE((SELECT SUM(cp.amount) FROM cash_payments cp WHERE cp.trader_id = t.id), 0) as total_payments,
-      COALESCE((SELECT SUM(gd.weight) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as total_gold_bought,
+      COALESCE((SELECT SUM(CASE WHEN gd.deal_type='sell' THEN -gd.total_amount ELSE gd.total_amount END) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as deals_net,
+      COALESCE((SELECT SUM(CASE WHEN cp.payment_type='loan' THEN -cp.amount ELSE cp.amount END) FROM cash_payments cp WHERE cp.trader_id = t.id), 0) as payments_net,
+      COALESCE((SELECT SUM(CASE WHEN gd.deal_type='sell' THEN -gd.weight ELSE gd.weight END) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as gold_deals_net,
       COALESCE((SELECT SUM(gt.weight) FROM gold_transfers gt WHERE gt.from_trader_id = t.id), 0) as gold_out,
       COALESCE((SELECT SUM(gt.weight) FROM gold_transfers gt WHERE gt.to_trader_id = t.id), 0) as gold_in
     FROM traders t WHERE t.is_active = 1 ORDER BY t.name
@@ -69,10 +64,9 @@ router.get('/traders', auth, (_req: AuthRequest, res: Response): void => {
 
   const result = traders.map(t => ({
     ...t,
-    money_balance: t.total_deals - t.total_payments,
-    gold_balance: t.total_gold_bought - t.gold_out + t.gold_in,
+    money_balance: t.deals_net - t.payments_net,
+    gold_balance: t.gold_deals_net - t.gold_out + t.gold_in,
   }));
-
   res.json(result);
 });
 
@@ -110,7 +104,7 @@ router.delete('/traders/:id', auth, adminOnly, (req: AuthRequest, res: Response)
   res.json({ message: 'تم الحذف' });
 });
 
-// ==== Trader Account Statement (كشف حساب) ====
+// ==== كشف حساب ====
 router.get('/traders/:id/statement', auth, (req: AuthRequest, res: Response): void => {
   const trader = db.prepare('SELECT * FROM traders WHERE id = ?').get(req.params.id) as any;
   if (!trader) { res.status(404).json({ error: 'التاجر مش موجود' }); return; }
@@ -128,63 +122,91 @@ router.get('/traders/:id/statement', auth, (req: AuthRequest, res: Response): vo
     'SELECT gt.*, t.name as from_trader_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders t ON gt.from_trader_id=t.id LEFT JOIN users u ON gt.created_by=u.id WHERE gt.to_trader_id=? ORDER BY gt.created_at DESC'
   ).all(req.params.id) as any[];
 
-  const totalDeals = deals.reduce((s, d) => s + d.total_amount, 0);
-  const totalPayments = payments.reduce((s, p) => s + p.amount, 0);
-  const totalGoldBought = deals.reduce((s, d) => s + d.weight, 0);
+  const dealsNet = deals.reduce((s, d) => s + (d.deal_type === 'sell' ? -d.total_amount : d.total_amount), 0);
+  const paymentsNet = payments.reduce((s, p) => s + (p.payment_type === 'loan' ? -p.amount : p.amount), 0);
+  const goldDealsNet = deals.reduce((s, d) => s + (d.deal_type === 'sell' ? -d.weight : d.weight), 0);
   const totalGoldOut = transfersOut.reduce((s, t) => s + t.weight, 0);
   const totalGoldIn = transfersIn.reduce((s, t) => s + t.weight, 0);
 
   res.json({
-    trader,
-    deals,
-    payments,
-    transfers_out: transfersOut,
-    transfers_in: transfersIn,
+    trader, deals, payments, transfers_out: transfersOut, transfers_in: transfersIn,
     summary: {
-      money_balance: totalDeals - totalPayments,
-      gold_balance: totalGoldBought - totalGoldOut + totalGoldIn,
-      total_deals: totalDeals,
-      total_payments: totalPayments,
-      total_gold_bought: totalGoldBought,
-      total_gold_out: totalGoldOut,
-      total_gold_in: totalGoldIn,
+      money_balance: dealsNet - paymentsNet,
+      gold_balance: goldDealsNet - totalGoldOut + totalGoldIn,
+      deals_net: dealsNet, payments_net: paymentsNet,
+      total_gold_bought: deals.filter(d => d.deal_type !== 'sell').reduce((s, d) => s + d.weight, 0),
+      total_gold_sold: deals.filter(d => d.deal_type === 'sell').reduce((s, d) => s + d.weight, 0),
+      total_gold_out: totalGoldOut, total_gold_in: totalGoldIn,
     },
   });
 });
 
 // ==================== TRANSACTIONS ====================
 
-// قطع دهب
+// قطع / شراء / بيع دهب
 router.post('/transactions/deal', auth, (req: AuthRequest, res: Response): void => {
-  const { trader_id, weight, price_per_gram, original_karat, original_weight, notes } = req.body;
+  const { trader_id, weight, price_per_gram, original_karat, original_weight, deal_type, notes } = req.body;
   if (!trader_id || !weight || !price_per_gram) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
 
   const total_amount = weight * price_per_gram;
+  const type = deal_type || 'buy';
   const result = db.prepare(
-    'INSERT INTO gold_deals (trader_id, weight, price_per_gram, total_amount, original_karat, original_weight, notes, created_by) VALUES (?,?,?,?,?,?,?,?)'
-  ).run(trader_id, weight, price_per_gram, total_amount, original_karat || 21, original_weight || weight, notes || '', req.user!.id);
+    'INSERT INTO gold_deals (trader_id, weight, price_per_gram, total_amount, original_karat, original_weight, deal_type, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?)'
+  ).run(trader_id, weight, price_per_gram, total_amount, original_karat || 21, original_weight || weight, type, notes || '', req.user!.id);
 
   const trader = db.prepare('SELECT name FROM traders WHERE id=?').get(trader_id) as any;
+  const label = type === 'sell' ? 'بيع دهب لـ' : 'شراء دهب من';
   logAudit(req.user!.id, 'create', 'gold_deals', result.lastInsertRowid as number,
-    `قطع دهب مع ${trader?.name}: ${weight}جم × ${price_per_gram} = ${total_amount}`);
+    `${label} ${trader?.name}: ${weight}جم × ${price_per_gram} = ${total_amount}`);
 
-  res.json({ id: result.lastInsertRowid, total_amount, message: 'تم تسجيل القطع' });
+  res.json({ id: result.lastInsertRowid, total_amount, message: 'تم التسجيل' });
 });
 
-// دفع فلوس
+// تعديل عملية دهب
+router.put('/transactions/deal/:id', auth, (req: AuthRequest, res: Response): void => {
+  const old = db.prepare('SELECT * FROM gold_deals WHERE id=?').get(req.params.id) as any;
+  if (!old) { res.status(404).json({ error: 'العملية مش موجودة' }); return; }
+
+  const { trader_id, weight, price_per_gram, original_karat, original_weight, deal_type, notes } = req.body;
+  const total_amount = (weight || old.weight) * (price_per_gram || old.price_per_gram);
+
+  db.prepare('UPDATE gold_deals SET trader_id=?, weight=?, price_per_gram=?, total_amount=?, original_karat=?, original_weight=?, deal_type=?, notes=? WHERE id=?')
+    .run(trader_id || old.trader_id, weight || old.weight, price_per_gram || old.price_per_gram, total_amount,
+      original_karat || old.original_karat, original_weight || old.original_weight, deal_type || old.deal_type, notes ?? old.notes, req.params.id);
+
+  logAudit(req.user!.id, 'update', 'gold_deals', +req.params.id, 'تعديل عملية دهب', old, req.body);
+  res.json({ message: 'تم التعديل' });
+});
+
+// دفع فلوس / سلفة
 router.post('/transactions/payment', auth, (req: AuthRequest, res: Response): void => {
-  const { trader_id, amount, notes } = req.body;
+  const { trader_id, amount, payment_type, notes } = req.body;
   if (!trader_id || !amount) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
 
+  const type = payment_type || 'payment';
   const result = db.prepare(
-    'INSERT INTO cash_payments (trader_id, amount, notes, created_by) VALUES (?,?,?,?)'
-  ).run(trader_id, amount, notes || '', req.user!.id);
+    'INSERT INTO cash_payments (trader_id, amount, payment_type, notes, created_by) VALUES (?,?,?,?,?)'
+  ).run(trader_id, amount, type, notes || '', req.user!.id);
 
   const trader = db.prepare('SELECT name FROM traders WHERE id=?').get(trader_id) as any;
+  const label = type === 'loan' ? 'استلام سلفة من' : 'دفع فلوس لـ';
   logAudit(req.user!.id, 'create', 'cash_payments', result.lastInsertRowid as number,
-    `دفع فلوس لـ ${trader?.name}: ${amount} جنيه`);
+    `${label} ${trader?.name}: ${amount} جنيه`);
 
-  res.json({ id: result.lastInsertRowid, message: 'تم تسجيل الدفع' });
+  res.json({ id: result.lastInsertRowid, message: 'تم التسجيل' });
+});
+
+// تعديل عملية فلوس
+router.put('/transactions/payment/:id', auth, (req: AuthRequest, res: Response): void => {
+  const old = db.prepare('SELECT * FROM cash_payments WHERE id=?').get(req.params.id) as any;
+  if (!old) { res.status(404).json({ error: 'العملية مش موجودة' }); return; }
+
+  const { trader_id, amount, payment_type, notes } = req.body;
+  db.prepare('UPDATE cash_payments SET trader_id=?, amount=?, payment_type=?, notes=? WHERE id=?')
+    .run(trader_id || old.trader_id, amount || old.amount, payment_type || old.payment_type, notes ?? old.notes, req.params.id);
+
+  logAudit(req.user!.id, 'update', 'cash_payments', +req.params.id, 'تعديل عملية فلوس', old, req.body);
+  res.json({ message: 'تم التعديل' });
 });
 
 // تحويل دهب
@@ -205,8 +227,22 @@ router.post('/transactions/transfer', auth, (req: AuthRequest, res: Response): v
   res.json({ id: result.lastInsertRowid, message: 'تم التحويل' });
 });
 
+// تعديل تحويل
+router.put('/transactions/transfer/:id', auth, (req: AuthRequest, res: Response): void => {
+  const old = db.prepare('SELECT * FROM gold_transfers WHERE id=?').get(req.params.id) as any;
+  if (!old) { res.status(404).json({ error: 'العملية مش موجودة' }); return; }
+
+  const { from_trader_id, to_trader_id, weight, original_karat, original_weight, notes } = req.body;
+  db.prepare('UPDATE gold_transfers SET from_trader_id=?, to_trader_id=?, weight=?, original_karat=?, original_weight=?, notes=? WHERE id=?')
+    .run(from_trader_id || old.from_trader_id, to_trader_id || old.to_trader_id, weight || old.weight,
+      original_karat || old.original_karat, original_weight || old.original_weight, notes ?? old.notes, req.params.id);
+
+  logAudit(req.user!.id, 'update', 'gold_transfers', +req.params.id, 'تعديل تحويل', old, req.body);
+  res.json({ message: 'تم التعديل' });
+});
+
 // حذف عملية
-router.delete('/transactions/:type/:id', auth, adminOnly, (req: AuthRequest, res: Response): void => {
+router.delete('/transactions/:type/:id', auth, (req: AuthRequest, res: Response): void => {
   const { type, id } = req.params;
   const tableMap: Record<string, string> = { deal: 'gold_deals', payment: 'cash_payments', transfer: 'gold_transfers' };
   const table = tableMap[type];
@@ -217,7 +253,6 @@ router.delete('/transactions/:type/:id', auth, adminOnly, (req: AuthRequest, res
 
   db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
   logAudit(req.user!.id, 'delete', table, +id, `حذف عملية من ${table}`, old);
-
   res.json({ message: 'تم الحذف' });
 });
 
@@ -230,35 +265,39 @@ router.get('/users', auth, adminOnly, (_req: AuthRequest, res: Response): void =
 router.post('/users', auth, adminOnly, (req: AuthRequest, res: Response): void => {
   const { username, password, full_name, role } = req.body;
   if (!username || !password || !full_name) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
-
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (exists) { res.status(400).json({ error: 'اسم المستخدم موجود' }); return; }
-
   const hash = bcrypt.hashSync(password, 10);
-  const result = db.prepare(
-    'INSERT INTO users (username, password_hash, full_name, role) VALUES (?,?,?,?)'
-  ).run(username, hash, full_name, role || 'user');
+  const result = db.prepare('INSERT INTO users (username, password_hash, full_name, role) VALUES (?,?,?,?)').run(username, hash, full_name, role || 'user');
   logAudit(req.user!.id, 'create', 'users', result.lastInsertRowid as number, `إضافة مستخدم: ${username}`);
-
   res.json({ id: result.lastInsertRowid, message: 'تم إضافة المستخدم' });
 });
 
 router.put('/users/:id', auth, adminOnly, (req: AuthRequest, res: Response): void => {
   const old = db.prepare('SELECT id, username, full_name, role, is_active FROM users WHERE id=?').get(req.params.id) as any;
   if (!old) { res.status(404).json({ error: 'المستخدم مش موجود' }); return; }
-
   const { full_name, role, is_active, password } = req.body;
-
   if (password) {
     const hash = bcrypt.hashSync(password, 10);
     db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hash, req.params.id);
   }
-
   db.prepare('UPDATE users SET full_name=?, role=?, is_active=? WHERE id=?')
     .run(full_name ?? old.full_name, role ?? old.role, is_active ?? old.is_active, req.params.id);
-
   logAudit(req.user!.id, 'update', 'users', +req.params.id, `تعديل مستخدم: ${old.username}`, old, req.body);
   res.json({ message: 'تم التعديل' });
+});
+
+// تغيير باسورد المستخدم الحالي
+router.put('/auth/password', auth, (req: AuthRequest, res: Response): void => {
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
+  const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.user!.id) as any;
+  if (!bcrypt.compareSync(current_password, user.password_hash)) {
+    res.status(400).json({ error: 'كلمة السر الحالية غلط' }); return;
+  }
+  const hash = bcrypt.hashSync(new_password, 10);
+  db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hash, req.user!.id);
+  res.json({ message: 'تم تغيير كلمة السر' });
 });
 
 // ==================== AUDIT LOG ====================
@@ -272,9 +311,9 @@ router.get('/audit', auth, adminOnly, (_req: AuthRequest, res: Response): void =
 // ==================== DASHBOARD ====================
 router.get('/dashboard', auth, (_req: AuthRequest, res: Response): void => {
   const totalTraders = (db.prepare('SELECT COUNT(*) as c FROM traders WHERE is_active=1').get() as any).c;
-  const totalDeals = (db.prepare('SELECT COALESCE(SUM(total_amount),0) as t FROM gold_deals').get() as any).t;
-  const totalPayments = (db.prepare('SELECT COALESCE(SUM(amount),0) as t FROM cash_payments').get() as any).t;
-  const totalGold = (db.prepare('SELECT COALESCE(SUM(weight),0) as t FROM gold_deals').get() as any).t;
+  const dealsNet = (db.prepare("SELECT COALESCE(SUM(CASE WHEN deal_type='sell' THEN -total_amount ELSE total_amount END),0) as t FROM gold_deals").get() as any).t;
+  const paymentsNet = (db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='loan' THEN -amount ELSE amount END),0) as t FROM cash_payments").get() as any).t;
+  const totalGold = (db.prepare("SELECT COALESCE(SUM(CASE WHEN deal_type='sell' THEN -weight ELSE weight END),0) as t FROM gold_deals").get() as any).t;
   const totalTransfers = (db.prepare('SELECT COALESCE(SUM(weight),0) as t FROM gold_transfers').get() as any).t;
 
   const recentDeals = db.prepare(
@@ -288,7 +327,7 @@ router.get('/dashboard', auth, (_req: AuthRequest, res: Response): void => {
   ).all();
 
   res.json({
-    stats: { total_traders: totalTraders, money_balance: totalDeals - totalPayments, total_gold: totalGold, total_transfers: totalTransfers },
+    stats: { total_traders: totalTraders, money_balance: dealsNet - paymentsNet, total_gold: totalGold, total_transfers: totalTransfers },
     recent: { deals: recentDeals, payments: recentPayments, transfers: recentTransfers },
   });
 });
