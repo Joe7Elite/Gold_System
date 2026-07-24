@@ -1,0 +1,13 @@
+{
+  "name": "gold-system",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build",
+    "start": "cd server && npx tsx src/index.ts"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
