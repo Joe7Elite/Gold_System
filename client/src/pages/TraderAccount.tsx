@@ -332,12 +332,21 @@ export default function TraderAccount() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 font-bold">
+                  <td className="px-4 py-3 font-bold text-sm">
+                    {item._type === 'deal' && item.deal_type === 'buy' && (
+                      <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
+                    )}
                     {item._type === 'deal' && item.deal_type === 'sell' && (
                       <span className="text-emerald-600">-{fmt(item.total_amount)} ج</span>
                     )}
-                    {item._type === 'deal' && item.deal_type !== 'sell' && (
-                      <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
+                    {item._type === 'deal' && item.deal_type === 'work' && (
+                      <div><span className="text-red-600">+{fmtW(item.weight)} جم</span>{item.total_amount > 0 && <span className="text-red-500 text-xs block">+{fmt(item.total_amount)} ج مصنعية</span>}</div>
+                    )}
+                    {item._type === 'deal' && item.deal_type === 'give' && (
+                      <span className="text-emerald-600">-{fmtW(item.weight)} جم</span>
+                    )}
+                    {item._type === 'deal' && item.deal_type === 'give_local_bar' && (
+                      <div><span className="text-emerald-600">-{fmtW(item.weight)} جم</span>{item.total_amount > 0 && <span className="text-emerald-500 text-xs block">-{fmt(item.total_amount)} ج</span>}</div>
                     )}
                     {item._type === 'payment' && item.payment_type === 'loan' && (
                       <span className="text-red-600">+{fmt(item.amount)} ج</span>
@@ -434,11 +443,20 @@ export default function TraderAccount() {
               {/* Bottom row: value + actions */}
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm">
+                  {item._type === 'deal' && item.deal_type === 'buy' && (
+                    <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
+                  )}
                   {item._type === 'deal' && item.deal_type === 'sell' && (
                     <span className="text-emerald-600">-{fmt(item.total_amount)} ج</span>
                   )}
-                  {item._type === 'deal' && item.deal_type !== 'sell' && (
-                    <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
+                  {item._type === 'deal' && item.deal_type === 'work' && (
+                    <span className="text-red-600">+{fmtW(item.weight)} جم{item.total_amount > 0 ? ` + ${fmt(item.total_amount)} ج` : ''}</span>
+                  )}
+                  {item._type === 'deal' && item.deal_type === 'give' && (
+                    <span className="text-emerald-600">-{fmtW(item.weight)} جم</span>
+                  )}
+                  {item._type === 'deal' && item.deal_type === 'give_local_bar' && (
+                    <span className="text-emerald-600">-{fmtW(item.weight)} جم{item.total_amount > 0 ? ` - ${fmt(item.total_amount)} ج` : ''}</span>
                   )}
                   {item._type === 'payment' && item.payment_type === 'loan' && (
                     <span className="text-red-600">+{fmt(item.amount)} ج</span>
