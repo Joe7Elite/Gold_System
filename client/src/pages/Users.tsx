@@ -129,18 +129,18 @@ export default function Users() {
 
   /* ─── Render ─── */
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-50 p-6">
+    <div className="animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">إدارة المستخدمين</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-xl md:text-2xl font-bold text-stone-800">إدارة المستخدمين</h1>
+          <p className="text-stone-400 text-sm mt-1">
             {loading ? '...' : `${users.length} مستخدم مسجّل`}
           </p>
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold rounded-xl shadow-md shadow-amber-200 transition-all"
+          className="btn-primary"
         >
           <span className="text-lg leading-none">+</span>
           إضافة مستخدم

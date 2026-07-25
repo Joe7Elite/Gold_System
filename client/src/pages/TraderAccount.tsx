@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
+import Modal from '../components/ui/Modal';
+import Badge from '../components/ui/Badge';
+import StatCard from '../components/ui/StatCard';
+import { PageLoader } from '../components/ui/Spinner';
+import EmptyState from '../components/ui/EmptyState';
 
 type EditModal = 'none' | 'deal' | 'payment' | 'transfer';
 
@@ -32,8 +37,12 @@ export default function TraderAccount() {
     api.get('/traders').then((r) => setTraders(r.data));
   }, [id]);
 
-  if (loading) return <div className="text-center py-10 text-gray-500">جاري التحميل...</div>;
-  if (!data) return <div className="text-center py-10 text-red-500">التاجر مش موجود</div>;
+  if (loading) return <PageLoader />;
+  if (!data) return (
+    <div className="flex items-center justify-center py-20">
+      <p className="text-red-500 font-medium">التاجر مش موجود</p>
+    </div>
+  );
 
   const { trader, deals, payments, transfers_out, transfers_in, summary } = data;
   const fmt = (n: number) => n?.toLocaleString('ar-EG') ?? '0';
@@ -51,9 +60,6 @@ export default function TraderAccount() {
     tab === 'deals' ? timeline.filter((t) => t._type === 'deal') :
     tab === 'payments' ? timeline.filter((t) => t._type === 'payment') :
     timeline.filter((t) => t._type === 'transfer_out' || t._type === 'transfer_in');
-
-  const tabClass = (t: string) =>
-    `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-amber-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`;
 
   // ---- Edit handlers ----
   const openEdit = (item: any) => {
@@ -165,100 +171,271 @@ export default function TraderAccount() {
     return { weight21: w21, total: w21 * p };
   };
 
+  // Badge resolver for timeline items
+  const getItemBadge = (item: any) => {
+    if (item._type === 'deal') {
+      if (item.deal_type === 'sell') return <Badge label="بيع" color="orange" />;
+      if (item.deal_type === 'work') return <Badge label="شغل" color="red" />;
+      if (item.deal_type === 'give') return <Badge label="لوجوهات" color="pink" />;
+      if (item.deal_type === 'give_local_bar') return <Badge label="سبيكة بلدي" color="yellow" />;
+      return <Badge label="شراء" color="amber" />;
+    }
+    if (item._type === 'payment') {
+      if (item.payment_type === 'loan') return <Badge label="سلفة" color="red" />;
+      return <Badge label="دفع فلوس" color="green" />;
+    }
+    if (item._type === 'transfer_out') return <Badge label="تحويل صادر" color="blue" />;
+    if (item._type === 'transfer_in') return <Badge label="تحويل وارد" color="purple" />;
+    return null;
+  };
+
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Link to="/traders" className="text-gray-400 hover:text-gray-600">&rarr; التجار</Link>
-        <h1 className="text-2xl font-bold text-gray-800">كشف حساب: {trader.name}</h1>
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Link to="/traders" className="text-stone-400 hover:text-stone-600 text-sm transition-colors">
+            التجار ←
+          </Link>
+        </div>
+        <h1 className="text-xl md:text-2xl font-bold text-stone-800">كشف حساب: {trader.name}</h1>
+        {trader.phone && (
+          <p className="text-stone-400 text-sm mt-1">تليفون: {trader.phone}</p>
+        )}
       </div>
 
-      {trader.phone && <p className="text-gray-500 mb-4 -mt-4">تليفون: {trader.phone}</p>}
-
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <SummaryCard
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+        <StatCard
           title="رصيد الفلوس"
           value={`${fmt(summary.money_balance)} ج`}
-          color={summary.money_balance > 0 ? 'text-red-600' : summary.money_balance < 0 ? 'text-green-600' : 'text-gray-400'}
+          color={summary.money_balance > 0 ? 'text-red-600' : summary.money_balance < 0 ? 'text-green-600' : 'text-stone-400'}
           sub={summary.money_balance > 0 ? 'عليك' : summary.money_balance < 0 ? 'ليك' : 'مفيش رصيد'}
+          iconBg={summary.money_balance > 0 ? 'bg-red-50' : summary.money_balance < 0 ? 'bg-emerald-50' : 'bg-stone-100'}
+          icon={
+            <svg className={`w-5 h-5 ${summary.money_balance > 0 ? 'text-red-500' : summary.money_balance < 0 ? 'text-emerald-500' : 'text-stone-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
         />
-        <SummaryCard
+        <StatCard
           title="رصيد الدهب"
           value={`${fmtW(summary.gold_balance)} جم`}
           color="text-amber-600"
           sub="عيار 21"
+          iconBg="bg-amber-50"
+          icon={
+            <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          }
         />
-        <SummaryCard
-          title="إجمالي المشتريات / المبيعات"
+        <StatCard
+          title="إجمالي المشتريات"
           value={`${fmt(summary.deals_net)} ج`}
-          color="text-gray-700"
+          color="text-stone-700"
           sub={`شراء: ${fmtW(summary.total_gold_bought)} جم | بيع: ${fmtW(summary.total_gold_sold)} جم`}
+          iconBg="bg-stone-100"
+          icon={
+            <svg className="w-5 h-5 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          }
         />
-        <SummaryCard
+        <StatCard
           title="إجمالي المدفوعات"
           value={`${fmt(summary.payments_net)} ج`}
-          color="text-green-600"
+          color="text-emerald-600"
           sub={`صادر: ${fmtW(summary.total_gold_out)} جم | وارد: ${fmtW(summary.total_gold_in)} جم`}
+          iconBg="bg-emerald-50"
+          icon={
+            <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+            </svg>
+          }
         />
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button className={tabClass('all')} onClick={() => setTab('all')}>الكل ({timeline.length})</button>
-        <button className={tabClass('deals')} onClick={() => setTab('deals')}>قطوعات ({deals.length})</button>
-        <button className={tabClass('payments')} onClick={() => setTab('payments')}>مدفوعات ({payments.length})</button>
-        <button className={tabClass('transfers')} onClick={() => setTab('transfers')}>تحويلات ({transfers_out.length + transfers_in.length})</button>
+      <div className="mb-4">
+        <div className="bg-stone-100 rounded-xl p-1 inline-flex gap-1">
+          {([
+            { key: 'all', label: `الكل (${timeline.length})` },
+            { key: 'deals', label: `قطوعات (${deals.length})` },
+            { key: 'payments', label: `مدفوعات (${payments.length})` },
+            { key: 'transfers', label: `تحويلات (${transfers_out.length + transfers_in.length})` },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-4 py-2 text-sm transition-all rounded-lg ${
+                tab === key
+                  ? 'bg-white shadow-sm text-stone-800 font-semibold'
+                  : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Timeline */}
-      <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
+      {/* Desktop Timeline Table */}
+      <div className="hidden md:block card overflow-hidden">
         <table className="w-full min-w-[700px] text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">النوع</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">التفاصيل</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">القيمة</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">بواسطة</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">التاريخ</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-600">إجراءات</th>
+          <thead>
+            <tr className="bg-stone-50/80">
+              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-medium">النوع</th>
+              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-medium">التفاصيل</th>
+              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-medium">القيمة</th>
+              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-medium">بواسطة</th>
+              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-medium">التاريخ</th>
+              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-medium">إجراءات</th>
             </tr>
           </thead>
           <tbody>
-            {filteredTimeline.map((item: any, i: number) => (
-              <tr key={`${item._type}-${item.id}-${i}`} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <TypeBadge type={item._type} dealType={item.deal_type} paymentType={item.payment_type} />
+            {filteredTimeline.length === 0 ? (
+              <tr>
+                <td colSpan={6}>
+                  <EmptyState icon="📋" title="لا توجد عمليات" />
                 </td>
-                <td className="px-4 py-3 text-gray-600">
-                  {item._type === 'deal' && (
-                    <span>
-                      {fmtW(item.weight)} جم × {fmt(item.price_per_gram)} ج
-                      {item.original_karat !== 21 && (
-                        <span className="text-gray-400"> (أصل: {fmtW(item.original_weight)} جم عيار {item.original_karat})</span>
+              </tr>
+            ) : (
+              filteredTimeline.map((item: any, i: number) => (
+                <tr key={`${item._type}-${item.id}-${i}`} className="border-t border-stone-50 hover:bg-gold-50/30 transition-colors">
+                  <td className="px-4 py-3">
+                    {getItemBadge(item)}
+                  </td>
+                  <td className="px-4 py-3 text-stone-600">
+                    {item._type === 'deal' && (
+                      <span>
+                        {fmtW(item.weight)} جم × {fmt(item.price_per_gram)} ج
+                        {item.original_karat !== 21 && (
+                          <span className="text-stone-400"> (أصل: {fmtW(item.original_weight)} جم عيار {item.original_karat})</span>
+                        )}
+                        {item.notes ? <span className="block text-xs text-stone-400">{item.notes}</span> : null}
+                      </span>
+                    )}
+                    {item._type === 'payment' && (
+                      <span>{item.notes || (item.payment_type === 'loan' ? 'سلفة' : 'دفعة نقدية')}</span>
+                    )}
+                    {item._type === 'transfer_out' && (
+                      <span>
+                        تحويل لـ {item.to_trader_name} - {fmtW(item.weight)} جم
+                        {item.notes ? <span className="block text-xs text-stone-400">{item.notes}</span> : null}
+                      </span>
+                    )}
+                    {item._type === 'transfer_in' && (
+                      <span>
+                        استلام من {item.from_trader_name} - {fmtW(item.weight)} جم
+                        {item.notes ? <span className="block text-xs text-stone-400">{item.notes}</span> : null}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-bold">
+                    {item._type === 'deal' && item.deal_type === 'sell' && (
+                      <span className="text-emerald-600">-{fmt(item.total_amount)} ج</span>
+                    )}
+                    {item._type === 'deal' && item.deal_type !== 'sell' && (
+                      <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
+                    )}
+                    {item._type === 'payment' && item.payment_type === 'loan' && (
+                      <span className="text-red-600">+{fmt(item.amount)} ج</span>
+                    )}
+                    {item._type === 'payment' && item.payment_type !== 'loan' && (
+                      <span className="text-emerald-600">-{fmt(item.amount)} ج</span>
+                    )}
+                    {item._type === 'transfer_out' && (
+                      <span className="text-blue-600">-{fmtW(item.weight)} جم</span>
+                    )}
+                    {item._type === 'transfer_in' && (
+                      <span className="text-purple-600">+{fmtW(item.weight)} جم</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-stone-400">{item.created_by_name}</td>
+                  <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{item._date}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1">
+                      {item._type !== 'transfer_in' && (
+                        <button
+                          onClick={() => openEdit(item)}
+                          title="تعديل"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
                       )}
-                      {item.notes ? <span className="block text-xs text-gray-400">{item.notes}</span> : null}
-                    </span>
-                  )}
-                  {item._type === 'payment' && (
-                    <span>{item.notes || (item.payment_type === 'loan' ? 'سلفة' : 'دفعة نقدية')}</span>
-                  )}
-                  {item._type === 'transfer_out' && (
-                    <span>
-                      تحويل لـ {item.to_trader_name} - {fmtW(item.weight)} جم
-                      {item.notes ? <span className="block text-xs text-gray-400">{item.notes}</span> : null}
-                    </span>
-                  )}
-                  {item._type === 'transfer_in' && (
-                    <span>
-                      استلام من {item.from_trader_name} - {fmtW(item.weight)} جم
-                      {item.notes ? <span className="block text-xs text-gray-400">{item.notes}</span> : null}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 font-bold">
+                      {item._type !== 'transfer_in' && (
+                        <button
+                          onClick={() => handleDelete(item)}
+                          title="حذف"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                      {item._type === 'transfer_in' && (
+                        <span className="text-xs text-stone-300">—</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Timeline Cards */}
+      <div className="md:hidden space-y-2">
+        {filteredTimeline.length === 0 ? (
+          <EmptyState icon="📋" title="لا توجد عمليات" />
+        ) : (
+          filteredTimeline.map((item: any, i: number) => (
+            <div key={`mobile-${item._type}-${item.id}-${i}`} className="card p-4 mb-2">
+              {/* Top row: Badge + date */}
+              <div className="flex items-center justify-between mb-2">
+                {getItemBadge(item)}
+                <span className="text-xs text-stone-400">{item._date}</span>
+              </div>
+
+              {/* Middle: details */}
+              <div className="text-sm text-stone-600 mb-3">
+                {item._type === 'deal' && (
+                  <span>
+                    {fmtW(item.weight)} جم × {fmt(item.price_per_gram)} ج
+                    {item.original_karat !== 21 && (
+                      <span className="text-stone-400"> (أصل: {fmtW(item.original_weight)} جم عيار {item.original_karat})</span>
+                    )}
+                    {item.notes ? <span className="block text-xs text-stone-400 mt-0.5">{item.notes}</span> : null}
+                  </span>
+                )}
+                {item._type === 'payment' && (
+                  <span>{item.notes || (item.payment_type === 'loan' ? 'سلفة' : 'دفعة نقدية')}</span>
+                )}
+                {item._type === 'transfer_out' && (
+                  <span>
+                    تحويل لـ {item.to_trader_name} - {fmtW(item.weight)} جم
+                    {item.notes ? <span className="block text-xs text-stone-400 mt-0.5">{item.notes}</span> : null}
+                  </span>
+                )}
+                {item._type === 'transfer_in' && (
+                  <span>
+                    استلام من {item.from_trader_name} - {fmtW(item.weight)} جم
+                    {item.notes ? <span className="block text-xs text-stone-400 mt-0.5">{item.notes}</span> : null}
+                  </span>
+                )}
+              </div>
+
+              {/* Bottom row: value + actions */}
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm">
                   {item._type === 'deal' && item.deal_type === 'sell' && (
-                    <span className="text-green-600">-{fmt(item.total_amount)} ج</span>
+                    <span className="text-emerald-600">-{fmt(item.total_amount)} ج</span>
                   )}
                   {item._type === 'deal' && item.deal_type !== 'sell' && (
                     <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
@@ -267,7 +444,7 @@ export default function TraderAccount() {
                     <span className="text-red-600">+{fmt(item.amount)} ج</span>
                   )}
                   {item._type === 'payment' && item.payment_type !== 'loan' && (
-                    <span className="text-green-600">-{fmt(item.amount)} ج</span>
+                    <span className="text-emerald-600">-{fmt(item.amount)} ج</span>
                   )}
                   {item._type === 'transfer_out' && (
                     <span className="text-blue-600">-{fmtW(item.weight)} جم</span>
@@ -275,353 +452,251 @@ export default function TraderAccount() {
                   {item._type === 'transfer_in' && (
                     <span className="text-purple-600">+{fmtW(item.weight)} جم</span>
                   )}
-                </td>
-                <td className="px-4 py-3 text-gray-400 text-xs">{item.created_by_name}</td>
-                <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{item._date}</td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-1">
-                    {(item._type !== 'transfer_in') && (
-                      <button
-                        onClick={() => openEdit(item)}
-                        className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs hover:bg-amber-200 transition-colors"
-                      >
-                        تعديل
-                      </button>
-                    )}
-                    {(item._type !== 'transfer_in') && (
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 transition-colors"
-                      >
-                        حذف
-                      </button>
-                    )}
-                    {item._type === 'transfer_in' && (
-                      <span className="text-xs text-gray-300">—</span>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filteredTimeline.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">لا توجد عمليات</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </span>
+                <div className="flex gap-1">
+                  {item._type !== 'transfer_in' && (
+                    <button
+                      onClick={() => openEdit(item)}
+                      title="تعديل"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  )}
+                  {item._type !== 'transfer_in' && (
+                    <button
+                      onClick={() => handleDelete(item)}
+                      title="حذف"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ===== EDIT MODALS ===== */}
-      {editModal !== 'none' && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={closeEdit}
-        >
-          <div
-            className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Edit Deal */}
-            {editModal === 'deal' && (
-              <>
-                <h2 className="text-lg font-bold mb-4">تعديل القطع</h2>
-                <form onSubmit={handleEditSubmit} className="space-y-3">
-                  {formError && (
-                    <div className="bg-red-50 text-red-600 p-2 rounded text-sm">{formError}</div>
-                  )}
-                  {/* Deal type */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">نوع العملية</label>
-                    <div className="flex gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="deal_type"
-                          value="buy"
-                          checked={form.deal_type === 'buy'}
-                          onChange={() => setForm({ ...form, deal_type: 'buy' })}
-                          className="accent-amber-600"
-                        />
-                        <span className="text-sm">شراء (بتاخد منه)</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="deal_type"
-                          value="sell"
-                          checked={form.deal_type === 'sell'}
-                          onChange={() => setForm({ ...form, deal_type: 'sell' })}
-                          className="accent-orange-600"
-                        />
-                        <span className="text-sm">بيع (بتديله)</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="الوزن (جرام)"
-                      value={form.weight || ''}
-                      onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    />
-                    <select
-                      value={form.karat || '21'}
-                      onChange={(e) => setForm({ ...form, karat: e.target.value })}
-                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    >
-                      <option value="21">عيار 21</option>
-                      <option value="24">عيار 24 (سبايك)</option>
-                      <option value="18">عيار 18 (كسر)</option>
-                      <option value="14">عيار 14</option>
-                    </select>
-                  </div>
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="سعر الجرام"
-                    value={form.price_per_gram || ''}
-                    onChange={(e) => setForm({ ...form, price_per_gram: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    required
-                  />
-                  {form.weight && form.price_per_gram && (
-                    <div className="bg-amber-50 p-3 rounded-lg text-sm space-y-1">
-                      {Number(form.karat || 21) !== 21 && (
-                        <div>الوزن بعيار 21: <b>{dealTotal().weight21.toFixed(2)} جم</b></div>
-                      )}
-                      <div>الإجمالي: <b className="text-amber-700">{fmt(Math.round(dealTotal().total))} جنيه</b></div>
-                    </div>
-                  )}
-                  <textarea
-                    placeholder="ملاحظات"
-                    value={form.notes || ''}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    rows={2}
-                  />
-                  <ModalButtons submitting={submitting} onCancel={closeEdit} label="حفظ التعديل" />
-                </form>
-              </>
-            )}
 
-            {/* Edit Payment */}
-            {editModal === 'payment' && (
-              <>
-                <h2 className="text-lg font-bold mb-4">تعديل الدفعة</h2>
-                <form onSubmit={handleEditSubmit} className="space-y-3">
-                  {formError && (
-                    <div className="bg-red-50 text-red-600 p-2 rounded text-sm">{formError}</div>
-                  )}
-                  {/* Payment type */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">نوع الدفعة</label>
-                    <div className="flex gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="payment_type"
-                          value="payment"
-                          checked={form.payment_type === 'payment'}
-                          onChange={() => setForm({ ...form, payment_type: 'payment' })}
-                          className="accent-green-600"
-                        />
-                        <span className="text-sm">دفع فلوس</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="payment_type"
-                          value="loan"
-                          checked={form.payment_type === 'loan'}
-                          onChange={() => setForm({ ...form, payment_type: 'loan' })}
-                          className="accent-red-600"
-                        />
-                        <span className="text-sm">سلفة</span>
-                      </label>
-                    </div>
-                  </div>
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="المبلغ (جنيه)"
-                    value={form.amount || ''}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    required
-                  />
-                  <textarea
-                    placeholder="ملاحظات"
-                    value={form.notes || ''}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    rows={2}
-                  />
-                  <ModalButtons submitting={submitting} onCancel={closeEdit} label="حفظ التعديل" />
-                </form>
-              </>
+      {/* Edit Deal */}
+      {editModal === 'deal' && (
+        <Modal title="تعديل القطع" onClose={closeEdit}>
+          <form onSubmit={handleEditSubmit} className="space-y-3">
+            {formError && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm">{formError}</div>
             )}
-
-            {/* Edit Transfer */}
-            {editModal === 'transfer' && (
-              <>
-                <h2 className="text-lg font-bold mb-4">تعديل التحويل</h2>
-                {editItem && (
-                  <div className="bg-blue-50 p-3 rounded-lg text-sm mb-3 text-blue-700">
-                    {editItem._type === 'transfer_out'
-                      ? `تحويل لـ ${editItem.to_trader_name}`
-                      : `استلام من ${editItem.from_trader_name}`}
-                  </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">نوع العملية</label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deal_type"
+                    value="buy"
+                    checked={form.deal_type === 'buy'}
+                    onChange={() => setForm({ ...form, deal_type: 'buy' })}
+                    className="accent-amber-600"
+                  />
+                  <span className="text-sm">شراء (بتاخد منه)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="deal_type"
+                    value="sell"
+                    checked={form.deal_type === 'sell'}
+                    onChange={() => setForm({ ...form, deal_type: 'sell' })}
+                    className="accent-orange-600"
+                  />
+                  <span className="text-sm">بيع (بتديله)</span>
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                step="any"
+                placeholder="الوزن (جرام)"
+                value={form.weight || ''}
+                onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                className="input-field"
+                required
+              />
+              <select
+                value={form.karat || '21'}
+                onChange={(e) => setForm({ ...form, karat: e.target.value })}
+                className="input-field"
+              >
+                <option value="21">عيار 21</option>
+                <option value="24">عيار 24 (سبايك)</option>
+                <option value="18">عيار 18 (كسر)</option>
+                <option value="14">عيار 14</option>
+              </select>
+            </div>
+            <input
+              type="number"
+              step="any"
+              placeholder="سعر الجرام"
+              value={form.price_per_gram || ''}
+              onChange={(e) => setForm({ ...form, price_per_gram: e.target.value })}
+              className="input-field w-full"
+              required
+            />
+            {form.weight && form.price_per_gram && (
+              <div className="bg-amber-50 p-3 rounded-xl text-sm space-y-1">
+                {Number(form.karat || 21) !== 21 && (
+                  <div>الوزن بعيار 21: <b>{dealTotal().weight21.toFixed(2)} جم</b></div>
                 )}
-                <form onSubmit={handleEditSubmit} className="space-y-3">
-                  {formError && (
-                    <div className="bg-red-50 text-red-600 p-2 rounded text-sm">{formError}</div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="الوزن (جرام)"
-                      value={form.weight || ''}
-                      onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    />
-                    <select
-                      value={form.karat || '21'}
-                      onChange={(e) => setForm({ ...form, karat: e.target.value })}
-                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    >
-                      <option value="21">عيار 21</option>
-                      <option value="24">عيار 24 (سبايك)</option>
-                      <option value="18">عيار 18 (كسر)</option>
-                      <option value="14">عيار 14</option>
-                    </select>
-                  </div>
-                  {form.weight && Number(form.karat || 21) !== 21 && (
-                    <div className="bg-blue-50 p-3 rounded-lg text-sm">
-                      الوزن بعيار 21:{' '}
-                      <b>{((Number(form.weight) * Number(form.karat || 21)) / 21).toFixed(2)} جم</b>
-                    </div>
-                  )}
-                  <textarea
-                    placeholder="ملاحظات"
-                    value={form.notes || ''}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    rows={2}
-                  />
-                  <ModalButtons submitting={submitting} onCancel={closeEdit} label="حفظ التعديل" />
-                </form>
-              </>
+                <div>الإجمالي: <b className="text-amber-700">{fmt(Math.round(dealTotal().total))} جنيه</b></div>
+              </div>
             )}
-          </div>
-        </div>
+            <textarea
+              placeholder="ملاحظات"
+              value={form.notes || ''}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="input-field w-full"
+              rows={2}
+            />
+            <div className="flex gap-2 pt-2">
+              <button type="submit" disabled={submitting} className="btn-primary flex-1">
+                {submitting ? 'جاري...' : 'حفظ التعديل'}
+              </button>
+              <button type="button" onClick={closeEdit} className="btn-secondary flex-1">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
-    </div>
-  );
-}
 
-// ---- Sub-components ----
+      {/* Edit Payment */}
+      {editModal === 'payment' && (
+        <Modal title="تعديل الدفعة" onClose={closeEdit}>
+          <form onSubmit={handleEditSubmit} className="space-y-3">
+            {formError && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm">{formError}</div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">نوع الدفعة</label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="payment_type"
+                    value="payment"
+                    checked={form.payment_type === 'payment'}
+                    onChange={() => setForm({ ...form, payment_type: 'payment' })}
+                    className="accent-green-600"
+                  />
+                  <span className="text-sm">دفع فلوس</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="payment_type"
+                    value="loan"
+                    checked={form.payment_type === 'loan'}
+                    onChange={() => setForm({ ...form, payment_type: 'loan' })}
+                    className="accent-red-600"
+                  />
+                  <span className="text-sm">سلفة</span>
+                </label>
+              </div>
+            </div>
+            <input
+              type="number"
+              step="any"
+              placeholder="المبلغ (جنيه)"
+              value={form.amount || ''}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              className="input-field w-full"
+              required
+            />
+            <textarea
+              placeholder="ملاحظات"
+              value={form.notes || ''}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="input-field w-full"
+              rows={2}
+            />
+            <div className="flex gap-2 pt-2">
+              <button type="submit" disabled={submitting} className="btn-primary flex-1">
+                {submitting ? 'جاري...' : 'حفظ التعديل'}
+              </button>
+              <button type="button" onClick={closeEdit} className="btn-secondary flex-1">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
-function SummaryCard({ title, value, color, sub }: { title: string; value: string; color: string; sub: string }) {
-  return (
-    <div className="bg-white rounded-xl shadow p-5">
-      <div className="text-sm text-gray-500">{title}</div>
-      <div className={`text-lg md:text-2xl font-bold mt-1 ${color}`}>{value}</div>
-      <div className="text-xs text-gray-400 mt-1">{sub}</div>
-    </div>
-  );
-}
-
-function TypeBadge({
-  type,
-  dealType,
-  paymentType,
-}: {
-  type: string;
-  dealType?: string;
-  paymentType?: string;
-}) {
-  // Determine label and style based on type + sub-type
-  if (type === 'deal') {
-    if (dealType === 'sell') {
-      return (
-        <span className="px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-700">
-          بيع
-        </span>
-      );
-    }
-    // default: buy
-    return (
-      <span className="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700">
-        شراء
-      </span>
-    );
-  }
-
-  if (type === 'payment') {
-    if (paymentType === 'loan') {
-      return (
-        <span className="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
-          سلفة
-        </span>
-      );
-    }
-    return (
-      <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-        دفع فلوس
-      </span>
-    );
-  }
-
-  if (type === 'transfer_out') {
-    return (
-      <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
-        تحويل صادر
-      </span>
-    );
-  }
-
-  if (type === 'transfer_in') {
-    return (
-      <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
-        تحويل وارد
-      </span>
-    );
-  }
-
-  return null;
-}
-
-function ModalButtons({
-  submitting,
-  onCancel,
-  label,
-}: {
-  submitting: boolean;
-  onCancel: () => void;
-  label: string;
-}) {
-  return (
-    <div className="flex gap-2 pt-2">
-      <button
-        type="submit"
-        disabled={submitting}
-        className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50 transition-colors"
-      >
-        {submitting ? 'جاري...' : label}
-      </button>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-      >
-        إلغاء
-      </button>
+      {/* Edit Transfer */}
+      {editModal === 'transfer' && (
+        <Modal title="تعديل التحويل" onClose={closeEdit}>
+          {editItem && (
+            <div className="bg-blue-50 p-3 rounded-xl text-sm mb-3 text-blue-700">
+              {editItem._type === 'transfer_out'
+                ? `تحويل لـ ${editItem.to_trader_name}`
+                : `استلام من ${editItem.from_trader_name}`}
+            </div>
+          )}
+          <form onSubmit={handleEditSubmit} className="space-y-3">
+            {formError && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm">{formError}</div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                step="any"
+                placeholder="الوزن (جرام)"
+                value={form.weight || ''}
+                onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                className="input-field"
+                required
+              />
+              <select
+                value={form.karat || '21'}
+                onChange={(e) => setForm({ ...form, karat: e.target.value })}
+                className="input-field"
+              >
+                <option value="21">عيار 21</option>
+                <option value="24">عيار 24 (سبايك)</option>
+                <option value="18">عيار 18 (كسر)</option>
+                <option value="14">عيار 14</option>
+              </select>
+            </div>
+            {form.weight && Number(form.karat || 21) !== 21 && (
+              <div className="bg-blue-50 p-3 rounded-xl text-sm">
+                الوزن بعيار 21:{' '}
+                <b>{((Number(form.weight) * Number(form.karat || 21)) / 21).toFixed(2)} جم</b>
+              </div>
+            )}
+            <textarea
+              placeholder="ملاحظات"
+              value={form.notes || ''}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="input-field w-full"
+              rows={2}
+            />
+            <div className="flex gap-2 pt-2">
+              <button type="submit" disabled={submitting} className="btn-primary flex-1">
+                {submitting ? 'جاري...' : 'حفظ التعديل'}
+              </button>
+              <button type="button" onClick={closeEdit} className="btn-secondary flex-1">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -25,31 +25,65 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">&#9878;</span>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-950 via-stone-900 to-stone-800 relative overflow-hidden">
+      {/* Decorative radial gold glow */}
+      <div className="bg-gold-500/10 rounded-full blur-3xl absolute w-[600px] h-[600px] -top-32 -left-32 pointer-events-none" />
+      <div className="bg-gold-500/10 rounded-full blur-3xl absolute w-[400px] h-[400px] -bottom-24 -right-24 pointer-events-none" />
+
+      {/* Card */}
+      <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-md animate-slide-up relative z-10">
+
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
+            <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-white">
+              <path d="M12 2L2 12l10 10 10-10L12 2z" fill="currentColor" />
+            </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">نظام حسابات الذهب</h1>
-          <p className="text-gray-500 mt-1">سجل دخول للمتابعة</p>
+          <h1 className="text-2xl font-bold text-stone-800">نظام حسابات الذهب</h1>
+          <p className="text-stone-400 mt-1 text-sm">سجل دخول للمتابعة</p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
+              {error}
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">اسم المستخدم</label>
-            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
-              placeholder="admin" required />
+            <label className="block text-sm font-semibold text-stone-600 mb-1.5">
+              اسم المستخدم
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="input-field"
+              placeholder="admin"
+              required
+            />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">كلمة السر</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
-              required />
+            <label className="block text-sm font-semibold text-stone-600 mb-1.5">
+              كلمة السر
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input-field"
+              required
+            />
           </div>
-          <button type="submit" disabled={loading}
-            className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full py-3 mt-2"
+          >
             {loading ? 'جاري الدخول...' : 'دخول'}
           </button>
         </form>
