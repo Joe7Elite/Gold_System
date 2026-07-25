@@ -49,11 +49,17 @@ export default function Traders() {
   // When spike is selected, karat is forced to 24
   const effectiveKarat = Number(form.original_karat || 21);
 
+  // تحويل الوزن لعيار 21
+  const toWeight21 = (w: number, karat: number, isFineness: boolean) => {
+    if (isFineness) return (w * karat) / 875; // سبيكة بلدي: عيار مثل 750, 817
+    return karat !== 21 ? (w * karat) / 21 : w; // عيار عادي: 18, 21, 24
+  };
+
   const dealTotal = () => {
     const karat = effectiveKarat;
     const w = Number(form.weight) || 0;
     const p = Number(form.price_per_gram) || 0;
-    const w21 = karat !== 21 ? (w * karat) / 21 : w;
+    const w21 = toWeight21(w, karat, false);
     return { weight21: w21, total: w21 * p };
   };
 
@@ -67,7 +73,7 @@ export default function Traders() {
       } else if (modal === 'deal') {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
+        const weight21 = toWeight21(origWeight, karat, false);
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
           weight: weight21,
@@ -80,7 +86,7 @@ export default function Traders() {
       } else if (modal === 'work') {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
+        const weight21 = toWeight21(origWeight, karat, false);
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
           weight: weight21,
@@ -99,9 +105,10 @@ export default function Traders() {
           notes: form.notes || '',
         });
       } else if (modal === 'give') {
-        const karat = effectiveKarat;
+        const isLocalBar = giveType === 'give_local_bar';
+        const karat = isLocalBar ? Number(form.fineness) : effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
+        const weight21 = toWeight21(origWeight, karat, isLocalBar);
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
           weight: weight21,
@@ -112,9 +119,9 @@ export default function Traders() {
           notes: form.notes || '',
         });
       } else if (modal === 'transfer') {
-        const karat = Number(form.original_karat) || 21;
+        const karat = effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
+        const weight21 = toWeight21(origWeight, karat, false);
         await api.post('/transactions/transfer', {
           from_trader_id: form.from_trader_id,
           to_trader_id: form.to_trader_id,
@@ -370,9 +377,8 @@ export default function Traders() {
                     <select value={form.original_karat || '21'} onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
                       className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500">
                       <option value="21">عيار 21</option>
-                      <option value="24">عيار 24 (سبايك)</option>
                       <option value="18">عيار 18</option>
-                      <option value="14">عيار 14</option>
+                      <option value="24">عيار 24 (سبايك)</option>
                     </select>
                   </div>
 
@@ -419,9 +425,8 @@ export default function Traders() {
                     <select value={form.original_karat || '21'} onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
                       className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500">
                       <option value="21">عيار 21</option>
-                      <option value="24">عيار 24 (سبايك)</option>
                       <option value="18">عيار 18</option>
-                      <option value="14">عيار 14</option>
+                      <option value="24">عيار 24 (سبايك)</option>
                     </select>
                   </div>
 
@@ -482,24 +487,28 @@ export default function Traders() {
                     <input type="number" step="any" min="0" placeholder="الوزن (جرام)" value={form.weight || ''}
                       onChange={(e) => setForm({ ...form, weight: e.target.value })}
                       className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-pink-500" required />
-                    <select value={form.original_karat || '21'} onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
-                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-pink-500">
-                      <option value="21">عيار 21</option>
-                      <option value="24">عيار 24</option>
-                      <option value="23.5">عيار 23.5</option>
-                      <option value="23">عيار 23</option>
-                      <option value="18">عيار 18</option>
-                      <option value="14">عيار 14</option>
-                    </select>
+                    {giveType === 'give_local_bar' ? (
+                      <input type="number" step="any" min="0" placeholder="عيار السبيكة (مثل 750, 817)"
+                        value={form.fineness || ''}
+                        onChange={(e) => setForm({ ...form, fineness: e.target.value })}
+                        className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-yellow-500" required />
+                    ) : (
+                      <select value="21" disabled
+                        className="px-3 py-2 border rounded-lg bg-gray-100 text-gray-500">
+                        <option value="21">عيار 21</option>
+                      </select>
+                    )}
                   </div>
 
                   {form.weight && (
                     <div className={`${giveType === 'give_local_bar' ? 'bg-yellow-50 border-yellow-200' : 'bg-pink-50 border-pink-200'} border p-3 rounded-lg text-sm space-y-1`}>
-                      {effectiveKarat !== 21 && (
-                        <div className="text-gray-600">الوزن بعيار 21: <span className="font-bold">{dealTotal().weight21.toFixed(3)} جم</span></div>
+                      {giveType === 'give_local_bar' && form.fineness && (
+                        <div className="text-gray-600">الوزن بعيار 21: <span className="font-bold text-yellow-800">{((Number(form.weight) * Number(form.fineness)) / 875).toFixed(3)} جم</span></div>
                       )}
                       <div className="text-pink-700 font-medium">
-                        هيتخصم {effectiveKarat !== 21 ? dealTotal().weight21.toFixed(3) : form.weight} جم من رصيد جراماتك
+                        هيتخصم {giveType === 'give_local_bar' && form.fineness
+                          ? ((Number(form.weight) * Number(form.fineness)) / 875).toFixed(3)
+                          : form.weight} جم من رصيد جراماتك
                       </div>
                       {giveType === 'give_local_bar' && (
                         <div className="text-green-700 font-medium">
@@ -647,9 +656,8 @@ export default function Traders() {
                       className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="21">عيار 21</option>
+                      <option value="18">عيار 18</option>
                       <option value="24">عيار 24 (سبايك)</option>
-                      <option value="18">عيار 18 (كسر)</option>
-                      <option value="14">عيار 14</option>
                     </select>
                   </div>
                   {form.weight && Number(form.original_karat || 21) !== 21 && (
