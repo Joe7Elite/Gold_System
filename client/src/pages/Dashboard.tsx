@@ -18,7 +18,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">لوحة التحكم</h1>
+      <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-6">لوحة التحكم</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card title="عدد التجار" value={stats.total_traders} color="text-gray-800" />
@@ -72,7 +72,7 @@ function Card({ title, value, color }: { title: string; value: any; color: strin
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <div className="text-sm text-gray-500">{title}</div>
-      <div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div>
+      <div className={`text-xl md:text-2xl font-bold mt-1 ${color}`}>{value}</div>
     </div>
   );
 }

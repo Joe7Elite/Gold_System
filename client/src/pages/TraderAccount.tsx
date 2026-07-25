@@ -212,8 +212,8 @@ export default function TraderAccount() {
       </div>
 
       {/* Timeline */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[700px] text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-right font-medium text-gray-600">النوع</th>
@@ -531,7 +531,7 @@ function SummaryCard({ title, value, color, sub }: { title: string; value: strin
   return (
     <div className="bg-white rounded-xl shadow p-5">
       <div className="text-sm text-gray-500">{title}</div>
-      <div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div>
+      <div className={`text-lg md:text-2xl font-bold mt-1 ${color}`}>{value}</div>
       <div className="text-xs text-gray-400 mt-1">{sub}</div>
     </div>
   );

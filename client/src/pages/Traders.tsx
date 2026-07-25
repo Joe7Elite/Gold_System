@@ -139,42 +139,42 @@ export default function Traders() {
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">التجار</h1>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800">التجار</h1>
+        <div className="flex flex-wrap gap-1.5 md:gap-2">
           <button
             onClick={() => openModal('add-trader')}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-xs md:text-sm font-medium transition-colors"
           >
             + تاجر جديد
           </button>
           <button
             onClick={() => openModal('deal')}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-3 py-1.5 md:px-4 md:py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs md:text-sm font-medium transition-colors"
           >
             قطع
           </button>
           <button
             onClick={() => openModal('work')}
-            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-3 py-1.5 md:px-4 md:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs md:text-sm font-medium transition-colors"
           >
             استلام شغل
           </button>
           <button
             onClick={() => openModal('give')}
-            className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-3 py-1.5 md:px-4 md:py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs md:text-sm font-medium transition-colors"
           >
             إدي للتاجر
           </button>
           <button
             onClick={() => openModal('payment')}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-3 py-1.5 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs md:text-sm font-medium transition-colors"
           >
             عملية فلوس
           </button>
           <button
             onClick={() => openModal('transfer')}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-3 py-1.5 md:px-4 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs md:text-sm font-medium transition-colors"
           >
             تحويل دهب
           </button>
@@ -192,8 +192,8 @@ export default function Traders() {
       </div>
 
       {/* Traders Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-right font-medium text-gray-600">الاسم</th>
@@ -290,7 +290,7 @@ export default function Traders() {
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto shadow-2xl"
+            className="bg-white rounded-xl p-4 md:p-6 w-full max-w-lg max-h-[95vh] md:max-h-[90vh] overflow-auto shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
 
