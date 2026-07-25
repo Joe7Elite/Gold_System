@@ -435,10 +435,10 @@ export default function Traders() {
                         <div className="text-gray-600">الوزن بعيار 21: <span className="font-bold text-orange-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
                       )}
                       <div className="text-orange-700 font-medium">
-                        هيتخصم {effectiveKarat !== 21 ? dealTotal().weight21.toFixed(3) : form.weight} جم من رصيد التاجر
+                        هيتحسب {effectiveKarat !== 21 ? dealTotal().weight21.toFixed(3) : form.weight} جم عليك
                       </div>
                       {form.craftsmanship && (
-                        <div className="text-red-600 font-medium">مصنعية عليك: {fmt(Number(form.craftsmanship))} جنيه</div>
+                        <div className="text-red-600 font-medium">+ مصنعية عليك: {fmt(Number(form.craftsmanship))} جنيه</div>
                       )}
                     </div>
                   )}
