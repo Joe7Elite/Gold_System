@@ -40,10 +40,10 @@ router.post('/auth/login', (req: Request, res: Response): void => {
     res.status(401).json({ error: 'اسم المستخدم أو كلمة السر غلط' }); return;
   }
   const token = jwt.sign(
-    { id: user.id, username: user.username, role: user.role, full_name: user.full_name },
+    { id: user.id, username: user.username, role: user.role, full_name: user.full_name, is_protected: user.is_protected || 0 },
     JWT_SECRET, { expiresIn: '24h' }
   );
-  res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role } });
+  res.json({ token, user: { id: user.id, username: user.username, full_name: user.full_name, role: user.role, is_protected: user.is_protected || 0 } });
 });
 
 router.get('/auth/me', auth, (req: AuthRequest, res: Response): void => {
@@ -96,7 +96,9 @@ router.put('/traders/:id', auth, (req: AuthRequest, res: Response): void => {
   res.json({ message: 'تم التعديل' });
 });
 
-router.delete('/traders/:id', auth, adminOnly, (req: AuthRequest, res: Response): void => {
+router.delete('/traders/:id', auth, (req: AuthRequest, res: Response): void => {
+  const caller = db.prepare('SELECT is_protected FROM users WHERE id=?').get(req.user!.id) as any;
+  if (!caller?.is_protected) { res.status(403).json({ error: 'مسموح بس للحساب الأساسي يحذف تجار' }); return; }
   const old = db.prepare('SELECT * FROM traders WHERE id = ?').get(req.params.id) as any;
   if (!old) { res.status(404).json({ error: 'التاجر مش موجود' }); return; }
   db.prepare('UPDATE traders SET is_active = 0 WHERE id = ?').run(req.params.id);

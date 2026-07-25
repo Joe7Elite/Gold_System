@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import Modal from '../components/ui/Modal';
 import { PageLoader } from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
@@ -11,6 +12,7 @@ type PaymentType = 'payment' | 'loan';
 type GiveType = 'give' | 'give_local_bar';
 
 export default function Traders() {
+  const { user } = useAuth();
   const [traders, setTraders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -47,6 +49,16 @@ export default function Traders() {
     setModal('none');
     setForm({});
     setFormError('');
+  };
+
+  const deleteTrader = async (t: any) => {
+    if (!window.confirm(`متأكد إنك عايز تحذف ${t.name}؟`)) return;
+    try {
+      await api.delete(`/traders/${t.id}`);
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'مقدرش أحذف التاجر');
+    }
   };
 
   // When spike is selected, karat is forced to 24
@@ -297,6 +309,14 @@ export default function Traders() {
                     >
                       تحويل
                     </button>
+                    {(user as any)?.is_protected ? (
+                      <button
+                        onClick={() => deleteTrader(t)}
+                        className="btn-ghost text-xs px-2 py-1 text-red-500 hover:bg-red-50"
+                      >
+                        حذف
+                      </button>
+                    ) : null}
                   </div>
                 </td>
               </tr>
@@ -381,6 +401,14 @@ export default function Traders() {
                 >
                   تحويل
                 </button>
+                {(user as any)?.is_protected ? (
+                  <button
+                    onClick={() => deleteTrader(t)}
+                    className="btn-ghost text-xs px-2 py-1 text-red-500 hover:bg-red-50"
+                  >
+                    حذف
+                  </button>
+                ) : null}
               </div>
             </div>
           ))
