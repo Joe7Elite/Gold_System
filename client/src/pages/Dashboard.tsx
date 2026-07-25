@@ -42,30 +42,17 @@ export default function Dashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
-        {/* عدد التجار */}
-        <StatCard
-          title="عدد التجار"
-          value={fmt(stats.total_traders)}
-          color="text-stone-800"
-          iconBg="bg-stone-100"
-          icon={
-            <svg className="w-5 h-5 text-stone-500" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM17 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 0 0-1.5-4.33A5 5 0 0 1 19 16v1h-6.07ZM6 11a5 5 0 0 1 5 5v1H1v-1a5 5 0 0 1 5-5Z" />
-            </svg>
-          }
-        />
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         {/* رصيد الفلوس */}
         <StatCard
           title="رصيد الفلوس"
-          value={`${fmt(stats.money_balance)} ج`}
-          color={moneyPositive ? 'text-green-600' : 'text-red-600'}
-          iconBg={moneyPositive ? 'bg-green-50' : 'bg-red-50'}
+          value={`${fmt(Math.abs(stats.money_balance))} ج`}
+          sub={stats.money_balance > 0 ? 'عليك' : stats.money_balance < 0 ? 'ليك' : 'مفيش رصيد'}
+          color={moneyPositive ? 'text-emerald-600' : 'text-red-600'}
+          iconBg={moneyPositive ? 'bg-emerald-50' : 'bg-red-50'}
           icon={
-            <svg className={`w-5 h-5 ${moneyPositive ? 'text-green-500' : 'text-red-500'}`} viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2Zm1 11.5V14a1 1 0 1 1-2 0v-.535A3.002 3.002 0 0 1 10 7a1 1 0 1 0 0-2 1 1 0 0 0-1 1H7a3 3 0 0 1 4-2.83V3a1 1 0 1 1 2 0v.17A3.001 3.001 0 0 1 13 9a3 3 0 0 1-2 2.83V13.5Z" />
-              <path fillRule="evenodd" d="M10 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+            <svg className={`w-6 h-6 ${moneyPositive ? 'text-emerald-500' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           }
         />
@@ -73,25 +60,13 @@ export default function Dashboard() {
         {/* إجمالي الذهب */}
         <StatCard
           title="إجمالي الذهب"
-          value={`${fmtW(stats.total_gold)} جم`}
-          color="text-amber-600"
+          value={`${fmtW(Math.abs(stats.total_gold))} جم`}
+          sub={stats.total_gold > 0 ? 'ليك' : stats.total_gold < 0 ? 'عليك' : 'مفيش رصيد'}
+          color={stats.total_gold > 0 ? 'text-emerald-600' : stats.total_gold < 0 ? 'text-red-600' : 'text-stone-400'}
           iconBg="bg-amber-50"
           icon={
-            <svg className="w-5 h-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 1 3 7h14L10 1ZM3 9h14v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9Zm4 2a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H7Z" clipRule="evenodd" />
-            </svg>
-          }
-        />
-
-        {/* إجمالي التحويلات */}
-        <StatCard
-          title="إجمالي التحويلات"
-          value={`${fmtW(stats.total_transfers)} جم`}
-          color="text-blue-600"
-          iconBg="bg-blue-50"
-          icon={
-            <svg className="w-5 h-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.389Zm1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0v2.43l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219Z" clipRule="evenodd" />
+            <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           }
         />
