@@ -72,7 +72,22 @@ export default function Traders() {
     setSubmitting(true);
     try {
       if (modal === 'add-trader') {
-        await api.post('/traders', form);
+        const res = await api.post('/traders', { name: form.name, phone: form.phone, address: form.address, notes: form.notes });
+        const newId = res.data.id;
+        // لو فيه رصيد افتتاحي (وزن أو فلوس) سجله
+        if (form.init_weight && Number(form.init_weight) > 0) {
+          await api.post('/transactions/deal', {
+            trader_id: newId, weight: Number(form.init_weight), price_per_gram: 0,
+            total_amount: 0, original_karat: 21, original_weight: Number(form.init_weight),
+            deal_type: 'buy', notes: 'رصيد افتتاحي - دهب',
+          });
+        }
+        if (form.init_money && Number(form.init_money) > 0) {
+          await api.post('/transactions/payment', {
+            trader_id: newId, amount: Number(form.init_money),
+            payment_type: form.init_money_type || 'loan', notes: 'رصيد افتتاحي - فلوس',
+          });
+        }
       } else if (modal === 'deal') {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
@@ -409,6 +424,45 @@ export default function Traders() {
               className="input-field"
               rows={2}
             />
+
+            {/* رصيد افتتاحي (اختياري) */}
+            <div className="border-t border-stone-100 pt-3 mt-2">
+              <p className="text-sm font-semibold text-stone-500 mb-3">رصيد افتتاحي (اختياري)</p>
+              <div className="space-y-3">
+                <input
+                  type="number" step="any" min="0"
+                  placeholder="رصيد الدهب (جرام عيار 21)"
+                  value={form.init_weight || ''}
+                  onChange={(e) => setForm({ ...form, init_weight: e.target.value })}
+                  className="input-field"
+                />
+                <input
+                  type="number" step="any" min="0"
+                  placeholder="رصيد الفلوس (جنيه)"
+                  value={form.init_money || ''}
+                  onChange={(e) => setForm({ ...form, init_money: e.target.value })}
+                  className="input-field"
+                />
+                {form.init_money && Number(form.init_money) > 0 && (
+                  <div>
+                    <p className="text-xs text-stone-400 mb-1.5">الفلوس دي عليك ولا ليك؟</p>
+                    <div className="flex gap-2 bg-stone-100 rounded-xl p-1">
+                      <button type="button"
+                        onClick={() => setForm({ ...form, init_money_type: 'loan' })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${(form.init_money_type || 'loan') === 'loan' ? 'bg-red-500 text-white shadow-sm' : 'text-stone-500'}`}>
+                        عليك (مديون)
+                      </button>
+                      <button type="button"
+                        onClick={() => setForm({ ...form, init_money_type: 'payment' })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${form.init_money_type === 'payment' ? 'bg-emerald-500 text-white shadow-sm' : 'text-stone-500'}`}>
+                        ليك (دائن)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <ModalButtons submitting={submitting} onCancel={closeModal} label="إضافة" />
           </form>
         </Modal>
