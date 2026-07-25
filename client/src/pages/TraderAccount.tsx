@@ -221,8 +221,8 @@ export default function TraderAccount() {
         <StatCard
           title="رصيد الدهب"
           value={`${fmtW(summary.gold_balance)} جم`}
-          color="text-amber-600"
-          sub="عيار 21"
+          color={summary.gold_balance > 0 ? 'text-red-600' : summary.gold_balance < 0 ? 'text-emerald-600' : 'text-stone-400'}
+          sub={summary.gold_balance > 0 ? 'عليك' : summary.gold_balance < 0 ? 'ليك' : 'مفيش رصيد'}
           iconBg="bg-amber-50"
           icon={
             <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">

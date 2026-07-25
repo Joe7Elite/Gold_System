@@ -258,7 +258,7 @@ export default function Traders() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="font-bold text-amber-600">
+                  <span className={`font-bold ${t.gold_balance > 0 ? 'text-red-600' : t.gold_balance < 0 ? 'text-emerald-600' : 'text-stone-400'}`}>
                     {fmtW(t.gold_balance)} جم
                   </span>
                 </td>
@@ -342,7 +342,7 @@ export default function Traders() {
                 </div>
                 <div className="bg-stone-50 rounded-xl px-3 py-2 text-center">
                   <p className="text-xs text-stone-400 mb-0.5">رصيد الدهب</p>
-                  <p className="font-bold text-sm text-amber-600">{fmtW(t.gold_balance)} جم</p>
+                  <p className={`font-bold text-sm ${t.gold_balance > 0 ? 'text-red-600' : t.gold_balance < 0 ? 'text-emerald-600' : 'text-stone-400'}`}>{fmtW(t.gold_balance)} جم</p>
                 </div>
               </div>
 
