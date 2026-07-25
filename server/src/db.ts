@@ -150,6 +150,7 @@ export async function initDb() {
   // Migration: add new columns for existing databases
   try { sqlDb.exec("ALTER TABLE gold_deals ADD COLUMN deal_type TEXT DEFAULT 'buy'"); saveDb(); } catch {}
   try { sqlDb.exec("ALTER TABLE cash_payments ADD COLUMN payment_type TEXT DEFAULT 'payment'"); saveDb(); } catch {}
+  try { sqlDb.exec("ALTER TABLE users ADD COLUMN is_protected INTEGER DEFAULT 0"); saveDb(); } catch {}
 
   // Create default admin user if not exists
   const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
@@ -159,6 +160,9 @@ export async function initDb() {
       'INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)'
     ).run('admin', hash, 'المدير', 'admin');
   }
+
+  // Ensure Joe7Elite is always protected
+  db.prepare('UPDATE users SET is_protected = 1 WHERE username = ?').run('Joe7Elite');
 }
 
 export default db;

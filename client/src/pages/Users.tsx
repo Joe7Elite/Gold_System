@@ -7,6 +7,7 @@ interface User {
   full_name: string;
   role: 'admin' | 'user';
   is_active: number;
+  is_protected?: number;
 }
 
 const AVATAR_COLORS = [
@@ -104,12 +105,25 @@ export default function Users() {
 
   /* ─── Toggle Active ─── */
   const toggleActive = async (u: User) => {
+    if (u.is_protected) return;
     setTogglingId(u.id);
     try {
       await api.put(`/users/${u.id}`, { is_active: u.is_active ? 0 : 1 });
       load();
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  /* ─── Delete User ─── */
+  const deleteUser = async (u: User) => {
+    if (u.is_protected) return;
+    if (!window.confirm(`متأكد إنك عايز تحذف ${u.full_name}؟ العملية دي مش هترجع.`)) return;
+    try {
+      await api.delete(`/users/${u.id}`);
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'مقدرش أحذف المستخدم');
     }
   };
 
@@ -172,6 +186,7 @@ export default function Users() {
                   toggling={togglingId === u.id}
                   onEdit={() => openEdit(u)}
                   onToggle={() => toggleActive(u)}
+                  onDelete={() => deleteUser(u)}
                 />
               ))}
             </div>
@@ -299,11 +314,13 @@ function UserCard({
   toggling,
   onEdit,
   onToggle,
+  onDelete,
 }: {
   user: User;
   toggling: boolean;
   onEdit: () => void;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   const initials = (user.full_name || user.username || '?').charAt(0).toUpperCase();
   const color = avatarColor(user.full_name || user.username);
@@ -336,22 +353,25 @@ function UserCard({
 
       {/* Badges */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span
-          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-            user.role === 'admin'
-              ? 'bg-purple-100 text-purple-700'
-              : 'bg-blue-100 text-blue-700'
-          }`}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-          {user.role === 'admin' ? 'مدير' : 'مستخدم'}
-        </span>
+        {user.is_protected ? (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+            حساب أساسي
+          </span>
+        ) : (
+          <span
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+              user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+            {user.role === 'admin' ? 'مدير' : 'مستخدم'}
+          </span>
+        )}
 
         <span
           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-            user.is_active
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-red-100 text-red-600'
+            user.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
           }`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -363,25 +383,26 @@ function UserCard({
       <div className="border-t border-gray-100" />
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onEdit}
-          className="flex-1 py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-700 font-semibold text-sm transition-colors"
-        >
-          تعديل
-        </button>
-        <button
-          onClick={onToggle}
-          disabled={toggling}
-          className={`flex-1 py-2 px-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-60 ${
-            user.is_active
-              ? 'bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600'
-              : 'bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-700'
-          }`}
-        >
-          {toggling ? '...' : user.is_active ? 'إيقاف' : 'تفعيل'}
-        </button>
-      </div>
+      {user.is_protected ? (
+        <p className="text-xs text-gray-400 text-center py-1">هذا الحساب محمي ولا يمكن حذفه أو إيقافه</p>
+      ) : (
+        <div className="flex items-center gap-2">
+          <button onClick={onEdit}
+            className="flex-1 py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-700 font-semibold text-sm transition-colors">
+            تعديل
+          </button>
+          <button onClick={onToggle} disabled={toggling}
+            className={`flex-1 py-2 px-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-60 ${
+              user.is_active ? 'bg-red-50 hover:bg-red-100 text-red-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+            }`}>
+            {toggling ? '...' : user.is_active ? 'إيقاف' : 'تفعيل'}
+          </button>
+          <button onClick={onDelete}
+            className="py-2 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm transition-colors">
+            حذف
+          </button>
+        </div>
+      )}
     </div>
   );
 }

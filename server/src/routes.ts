@@ -258,7 +258,7 @@ router.delete('/transactions/:type/:id', auth, (req: AuthRequest, res: Response)
 
 // ==================== USERS ====================
 router.get('/users', auth, adminOnly, (_req: AuthRequest, res: Response): void => {
-  const users = db.prepare('SELECT id, username, full_name, role, is_active, created_at FROM users ORDER BY created_at DESC').all();
+  const users = db.prepare('SELECT id, username, full_name, role, is_active, is_protected, created_at FROM users ORDER BY is_protected DESC, created_at DESC').all();
   res.json(users);
 });
 
@@ -274,9 +274,17 @@ router.post('/users', auth, adminOnly, (req: AuthRequest, res: Response): void =
 });
 
 router.put('/users/:id', auth, adminOnly, (req: AuthRequest, res: Response): void => {
-  const old = db.prepare('SELECT id, username, full_name, role, is_active FROM users WHERE id=?').get(req.params.id) as any;
+  const old = db.prepare('SELECT id, username, full_name, role, is_active, is_protected FROM users WHERE id=?').get(req.params.id) as any;
   if (!old) { res.status(404).json({ error: 'المستخدم مش موجود' }); return; }
+  // لو اليوزر محمي، بس هو نفسه يقدر يعدل بياناته
+  if (old.is_protected && req.user!.id !== old.id) {
+    res.status(403).json({ error: 'مينفعش تعدل على الحساب ده' }); return;
+  }
   const { full_name, role, is_active, password } = req.body;
+  // لو محمي، منفعش يتوقف أو يتغير دوره
+  if (old.is_protected && (is_active === 0 || (role && role !== 'admin'))) {
+    res.status(403).json({ error: 'مينفعش توقف أو تغير صلاحية الحساب ده' }); return;
+  }
   if (password) {
     const hash = bcrypt.hashSync(password, 10);
     db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hash, req.params.id);
@@ -285,6 +293,18 @@ router.put('/users/:id', auth, adminOnly, (req: AuthRequest, res: Response): voi
     .run(full_name ?? old.full_name, role ?? old.role, is_active ?? old.is_active, req.params.id);
   logAudit(req.user!.id, 'update', 'users', +req.params.id, `تعديل مستخدم: ${old.username}`, old, req.body);
   res.json({ message: 'تم التعديل' });
+});
+
+// حذف مستخدم (المحمي بس يقدر يحذف)
+router.delete('/users/:id', auth, (req: AuthRequest, res: Response): void => {
+  const caller = db.prepare('SELECT is_protected FROM users WHERE id=?').get(req.user!.id) as any;
+  if (!caller?.is_protected) { res.status(403).json({ error: 'مسموح بس للحساب الأساسي يحذف مستخدمين' }); return; }
+  const target = db.prepare('SELECT * FROM users WHERE id=?').get(req.params.id) as any;
+  if (!target) { res.status(404).json({ error: 'المستخدم مش موجود' }); return; }
+  if (target.is_protected) { res.status(403).json({ error: 'مينفعش تحذف الحساب الأساسي' }); return; }
+  db.prepare('DELETE FROM users WHERE id=?').run(req.params.id);
+  logAudit(req.user!.id, 'delete', 'users', +req.params.id, `حذف مستخدم: ${target.username}`, target);
+  res.json({ message: 'تم حذف المستخدم' });
 });
 
 // تغيير باسورد المستخدم الحالي
