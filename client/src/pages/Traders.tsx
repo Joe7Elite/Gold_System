@@ -69,7 +69,7 @@ export default function Traders() {
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
           weight: weight21,
-          price_per_gram: Number(form.price_per_gram),
+          price_per_gram: apiDealType === 'sell' ? 0 : Number(form.price_per_gram),
           original_karat: karat,
           original_weight: origWeight,
           deal_type: apiDealType,
@@ -383,21 +383,23 @@ export default function Traders() {
                     </select>
                   </div>
 
-                  {/* Price per gram */}
-                  <input
-                    type="number"
-                    step="any"
-                    min="0"
-                    placeholder="سعر الجرام"
-                    value={form.price_per_gram || ''}
-                    onChange={(e) => setForm({ ...form, price_per_gram: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    required
-                  />
+                  {/* Price per gram - only for buy/spike */}
+                  {dealType !== 'sell' && (
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="سعر الجرام"
+                      value={form.price_per_gram || ''}
+                      onChange={(e) => setForm({ ...form, price_per_gram: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
+                      required
+                    />
+                  )}
 
                   {/* Live calculation preview */}
-                  {form.weight && form.price_per_gram && (
-                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm space-y-1">
+                  {form.weight && (
+                    <div className={`${dealType === 'sell' ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'} border p-3 rounded-lg text-sm space-y-1`}>
                       {effectiveKarat !== 21 && (
                         <div className="text-gray-600">
                           الوزن بعيار 21:{' '}
@@ -406,12 +408,20 @@ export default function Traders() {
                           </span>
                         </div>
                       )}
-                      <div className="text-gray-600">
-                        الإجمالي:{' '}
-                        <span className="font-bold text-amber-700 text-base">
-                          {fmt(Math.round(dealTotal().total))} جنيه
-                        </span>
-                      </div>
+                      {dealType === 'sell' ? (
+                        <div className="text-orange-700 font-medium">
+                          هيتخصم {effectiveKarat !== 21 ? dealTotal().weight21.toFixed(3) : form.weight} جم من رصيد التاجر
+                        </div>
+                      ) : (
+                        form.price_per_gram && (
+                          <div className="text-gray-600">
+                            الإجمالي:{' '}
+                            <span className="font-bold text-amber-700 text-base">
+                              {fmt(Math.round(dealTotal().total))} جنيه
+                            </span>
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
 

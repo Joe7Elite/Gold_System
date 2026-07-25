@@ -146,13 +146,15 @@ router.get('/traders/:id/statement', auth, (req: AuthRequest, res: Response): vo
 // قطع / شراء / بيع دهب
 router.post('/transactions/deal', auth, (req: AuthRequest, res: Response): void => {
   const { trader_id, weight, price_per_gram, original_karat, original_weight, deal_type, notes } = req.body;
-  if (!trader_id || !weight || !price_per_gram) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
-
-  const total_amount = weight * price_per_gram;
   const type = deal_type || 'buy';
+  if (!trader_id || !weight) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
+  if (type === 'buy' && !price_per_gram) { res.status(400).json({ error: 'سعر الجرام مطلوب للشراء' }); return; }
+
+  const price = type === 'sell' ? 0 : price_per_gram;
+  const total_amount = type === 'sell' ? 0 : weight * price;
   const result = db.prepare(
     'INSERT INTO gold_deals (trader_id, weight, price_per_gram, total_amount, original_karat, original_weight, deal_type, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?)'
-  ).run(trader_id, weight, price_per_gram, total_amount, original_karat || 21, original_weight || weight, type, notes || '', req.user!.id);
+  ).run(trader_id, weight, price, total_amount, original_karat || 21, original_weight || weight, type, notes || '', req.user!.id);
 
   const trader = db.prepare('SELECT name FROM traders WHERE id=?').get(trader_id) as any;
   const label = type === 'sell' ? 'بيع دهب لـ' : 'شراء دهب من';
