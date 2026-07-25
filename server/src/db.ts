@@ -167,7 +167,7 @@ export async function initDb() {
     const hash = bcrypt.hashSync('Joe4Gold', 10);
     db.prepare(
       'INSERT INTO users (username, password_hash, full_name, role, is_protected) VALUES (?, ?, ?, ?, 1)'
-    ).run('Joe7Elite', hash, 'Joe', 'admin', 1);
+    ).run('Joe7Elite', hash, 'Joe', 'admin');
   }
   db.prepare('UPDATE users SET is_protected = 1 WHERE username = ?').run('Joe7Elite');
 }
