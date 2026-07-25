@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
 
-type Modal = 'none' | 'add-trader' | 'deal' | 'payment' | 'transfer';
-type DealType = 'buy' | 'sell' | 'spike';
+type Modal = 'none' | 'add-trader' | 'deal' | 'payment' | 'transfer' | 'work';
+type DealType = 'buy' | 'sell';
 type PaymentType = 'payment' | 'loan';
 
 export default function Traders() {
@@ -44,7 +44,7 @@ export default function Traders() {
   };
 
   // When spike is selected, karat is forced to 24
-  const effectiveKarat = dealType === 'spike' ? 24 : Number(form.original_karat || 21);
+  const effectiveKarat = Number(form.original_karat || 21);
 
   const dealTotal = () => {
     const karat = effectiveKarat;
@@ -65,14 +65,27 @@ export default function Traders() {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
         const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
-        const apiDealType = dealType === 'spike' ? 'buy' : dealType;
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
           weight: weight21,
-          price_per_gram: apiDealType === 'sell' ? 0 : Number(form.price_per_gram),
+          price_per_gram: Number(form.price_per_gram),
           original_karat: karat,
           original_weight: origWeight,
-          deal_type: apiDealType,
+          deal_type: dealType,
+          notes: form.notes || '',
+        });
+      } else if (modal === 'work') {
+        const karat = effectiveKarat;
+        const origWeight = Number(form.weight);
+        const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
+        await api.post('/transactions/deal', {
+          trader_id: form.trader_id,
+          weight: weight21,
+          price_per_gram: 0,
+          total_amount: Number(form.craftsmanship) || 0,
+          original_karat: karat,
+          original_weight: origWeight,
+          deal_type: 'work',
           notes: form.notes || '',
         });
       } else if (modal === 'payment') {
@@ -123,7 +136,13 @@ export default function Traders() {
             onClick={() => openModal('deal')}
             className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
-            عملية دهب
+            قطع
+          </button>
+          <button
+            onClick={() => openModal('work')}
+            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            استلام شغل
           </button>
           <button
             onClick={() => openModal('payment')}
@@ -195,26 +214,20 @@ export default function Traders() {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     <button
-                      onClick={() => openModal('deal', { trader_id: t.id, _dealType: 'buy' })}
+                      onClick={() => openModal('deal', { trader_id: t.id })}
                       className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs hover:bg-amber-200 font-medium transition-colors"
-                      title="شراء"
                     >
-                      شراء
+                      قطع
                     </button>
                     <button
-                      onClick={() => {
-                        openModal('deal', { trader_id: t.id });
-                        setDealType('sell');
-                      }}
+                      onClick={() => openModal('work', { trader_id: t.id })}
                       className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs hover:bg-orange-200 font-medium transition-colors"
-                      title="بيع"
                     >
-                      بيع
+                      شغل
                     </button>
                     <button
                       onClick={() => openModal('payment', { trader_id: t.id })}
                       className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 font-medium transition-colors"
-                      title="دفع فلوس"
                     >
                       دفع
                     </button>
@@ -224,14 +237,12 @@ export default function Traders() {
                         setPaymentType('loan');
                       }}
                       className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 font-medium transition-colors"
-                      title="استلام سلفة"
                     >
                       سلفة
                     </button>
                     <button
                       onClick={() => openModal('transfer', { from_trader_id: t.id })}
                       className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 font-medium transition-colors"
-                      title="تحويل دهب"
                     >
                       تحويل
                     </button>
@@ -302,147 +313,117 @@ export default function Traders() {
               </>
             )}
 
-            {/* ── Gold Deal (عملية دهب) ── */}
+            {/* ── قطع (شراء / بيع بسعر) ── */}
             {modal === 'deal' && (
               <>
-                <h2 className="text-lg font-bold mb-5 text-gray-800">عملية دهب</h2>
+                <h2 className="text-lg font-bold mb-5 text-gray-800">قطع</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {formError && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">
-                      {formError}
-                    </div>
-                  )}
+                  {formError && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">{formError}</div>}
 
-                  {/* Deal type selector */}
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-2">نوع العملية</p>
+                    <p className="text-sm font-medium text-gray-600 mb-2">نوع القطع</p>
                     <div className="flex gap-2">
-                      {(
-                        [
-                          { value: 'buy', label: 'شراء', active: 'bg-amber-500 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
-                          { value: 'sell', label: 'بيع', active: 'bg-orange-500 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
-                          { value: 'spike', label: 'سبايك', active: 'bg-yellow-500 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
-                        ] as { value: DealType; label: string; active: string; inactive: string }[]
-                      ).map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setDealType(opt.value)}
-                          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                            dealType === opt.value ? opt.active : opt.inactive
-                          }`}
-                        >
+                      {([
+                        { value: 'buy' as DealType, label: 'شراء (عليك)', active: 'bg-amber-500 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
+                        { value: 'sell' as DealType, label: 'بيع (ليك)', active: 'bg-green-500 text-white', inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
+                      ]).map((opt) => (
+                        <button key={opt.value} type="button" onClick={() => setDealType(opt.value)}
+                          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${dealType === opt.value ? opt.active : opt.inactive}`}>
                           {opt.label}
                         </button>
                       ))}
                     </div>
-                    {dealType === 'spike' && (
-                      <p className="text-xs text-yellow-700 bg-yellow-50 px-3 py-1.5 rounded-lg mt-2">
-                        سبايك = شراء بعيار 24 تلقائياً
-                      </p>
-                    )}
                   </div>
 
-                  {/* Trader selector */}
-                  <select
-                    value={form.trader_id || ''}
-                    onChange={(e) => setForm({ ...form, trader_id: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    required
-                  >
+                  <select value={form.trader_id || ''} onChange={(e) => setForm({ ...form, trader_id: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500" required>
                     <option value="">اختار التاجر</option>
-                    {traders.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
+                    {traders.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
 
-                  {/* Weight & Karat */}
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      placeholder="الوزن (جرام)"
-                      value={form.weight || ''}
+                    <input type="number" step="any" min="0" placeholder="الوزن (جرام)" value={form.weight || ''}
                       onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    />
-                    <select
-                      value={dealType === 'spike' ? '24' : (form.original_karat || '21')}
-                      onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
-                      disabled={dealType === 'spike'}
-                      className={`px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500 ${
-                        dealType === 'spike' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
-                      }`}
-                    >
+                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500" required />
+                    <select value={form.original_karat || '21'} onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
+                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500">
                       <option value="21">عيار 21</option>
                       <option value="24">عيار 24 (سبايك)</option>
-                      <option value="18">عيار 18 (كسر)</option>
+                      <option value="18">عيار 18</option>
                       <option value="14">عيار 14</option>
                     </select>
                   </div>
 
-                  {/* Price per gram - only for buy/spike */}
-                  {dealType !== 'sell' && (
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      placeholder="سعر الجرام"
-                      value={form.price_per_gram || ''}
-                      onChange={(e) => setForm({ ...form, price_per_gram: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                      required
-                    />
+                  <input type="number" step="any" min="0" placeholder="سعر الجرام" value={form.price_per_gram || ''}
+                    onChange={(e) => setForm({ ...form, price_per_gram: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500" required />
+
+                  {form.weight && form.price_per_gram && (
+                    <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm space-y-1">
+                      {effectiveKarat !== 21 && (
+                        <div className="text-gray-600">الوزن بعيار 21: <span className="font-bold text-amber-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
+                      )}
+                      <div className="text-gray-600">الإجمالي: <span className="font-bold text-amber-700 text-base">{fmt(Math.round(dealTotal().total))} جنيه</span></div>
+                      <div className={`font-medium ${dealType === 'buy' ? 'text-red-600' : 'text-green-600'}`}>
+                        {dealType === 'buy' ? '(عليك للتاجر)' : '(ليك من التاجر)'}
+                      </div>
+                    </div>
                   )}
 
-                  {/* Live calculation preview */}
+                  <textarea placeholder="ملاحظات" value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500" rows={2} />
+                  <ModalButtons submitting={submitting} onCancel={closeModal} label={dealType === 'buy' ? 'تسجيل شراء' : 'تسجيل بيع'} />
+                </form>
+              </>
+            )}
+
+            {/* ── استلام شغل (جرامات + مصنعية) ── */}
+            {modal === 'work' && (
+              <>
+                <h2 className="text-lg font-bold mb-5 text-gray-800">استلام شغل</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {formError && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">{formError}</div>}
+
+                  <select value={form.trader_id || ''} onChange={(e) => setForm({ ...form, trader_id: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" required>
+                    <option value="">اختار التاجر</option>
+                    {traders.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="number" step="any" min="0" placeholder="الوزن (جرام)" value={form.weight || ''}
+                      onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" required />
+                    <select value={form.original_karat || '21'} onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
+                      className="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500">
+                      <option value="21">عيار 21</option>
+                      <option value="24">عيار 24 (سبايك)</option>
+                      <option value="18">عيار 18</option>
+                      <option value="14">عيار 14</option>
+                    </select>
+                  </div>
+
+                  <input type="number" step="any" min="0" placeholder="المصنعية (جنيه)" value={form.craftsmanship || ''}
+                    onChange={(e) => setForm({ ...form, craftsmanship: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" />
+
                   {form.weight && (
-                    <div className={`${dealType === 'sell' ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'} border p-3 rounded-lg text-sm space-y-1`}>
+                    <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg text-sm space-y-1">
                       {effectiveKarat !== 21 && (
-                        <div className="text-gray-600">
-                          الوزن بعيار 21:{' '}
-                          <span className="font-bold text-amber-800">
-                            {dealTotal().weight21.toFixed(3)} جم
-                          </span>
-                        </div>
+                        <div className="text-gray-600">الوزن بعيار 21: <span className="font-bold text-orange-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
                       )}
-                      {dealType === 'sell' ? (
-                        <div className="text-orange-700 font-medium">
-                          هيتخصم {effectiveKarat !== 21 ? dealTotal().weight21.toFixed(3) : form.weight} جم من رصيد التاجر
-                        </div>
-                      ) : (
-                        form.price_per_gram && (
-                          <div className="text-gray-600">
-                            الإجمالي:{' '}
-                            <span className="font-bold text-amber-700 text-base">
-                              {fmt(Math.round(dealTotal().total))} جنيه
-                            </span>
-                          </div>
-                        )
+                      <div className="text-orange-700 font-medium">
+                        هيتخصم {effectiveKarat !== 21 ? dealTotal().weight21.toFixed(3) : form.weight} جم من رصيد التاجر
+                      </div>
+                      {form.craftsmanship && (
+                        <div className="text-red-600 font-medium">مصنعية عليك: {fmt(Number(form.craftsmanship))} جنيه</div>
                       )}
                     </div>
                   )}
 
-                  <textarea
-                    placeholder="ملاحظات"
-                    value={form.notes || ''}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                    rows={2}
-                  />
-                  <ModalButtons
-                    submitting={submitting}
-                    onCancel={closeModal}
-                    label={
-                      dealType === 'buy'
-                        ? 'تسجيل شراء'
-                        : dealType === 'sell'
-                        ? 'تسجيل بيع'
-                        : 'تسجيل سبايك'
-                    }
-                  />
+                  <textarea placeholder="ملاحظات (نوع الشغل...)" value={form.notes || ''} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500" rows={2} />
+                  <ModalButtons submitting={submitting} onCancel={closeModal} label="تسجيل استلام" color="amber" />
                 </form>
               </>
             )}
