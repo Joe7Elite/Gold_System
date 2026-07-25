@@ -334,31 +334,31 @@ export default function TraderAccount() {
                   </td>
                   <td className="px-4 py-3 font-bold text-sm">
                     {item._type === 'deal' && item.deal_type === 'buy' && (
-                      <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
+                      <span className="text-red-600">{fmt(item.total_amount)} ج <span className="text-xs font-normal">عليك</span></span>
                     )}
                     {item._type === 'deal' && item.deal_type === 'sell' && (
-                      <span className="text-emerald-600">-{fmt(item.total_amount)} ج</span>
+                      <span className="text-emerald-600">{fmt(item.total_amount)} ج <span className="text-xs font-normal">ليك</span></span>
                     )}
                     {item._type === 'deal' && item.deal_type === 'work' && (
-                      <div><span className="text-red-600">+{fmtW(item.weight)} جم</span>{item.total_amount > 0 && <span className="text-red-500 text-xs block">+{fmt(item.total_amount)} ج مصنعية</span>}</div>
+                      <div><span className="text-red-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">عليك</span></span>{item.total_amount > 0 && <span className="text-red-500 text-xs block">{fmt(item.total_amount)} ج مصنعية عليك</span>}</div>
                     )}
                     {item._type === 'deal' && item.deal_type === 'give' && (
-                      <span className="text-emerald-600">-{fmtW(item.weight)} جم</span>
+                      <span className="text-emerald-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">ليك</span></span>
                     )}
                     {item._type === 'deal' && item.deal_type === 'give_local_bar' && (
-                      <div><span className="text-emerald-600">-{fmtW(item.weight)} جم</span>{item.total_amount > 0 && <span className="text-emerald-500 text-xs block">-{fmt(item.total_amount)} ج</span>}</div>
+                      <div><span className="text-emerald-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">ليك</span></span>{item.total_amount > 0 && <span className="text-emerald-500 text-xs block">{fmt(item.total_amount)} ج ليك</span>}</div>
                     )}
                     {item._type === 'payment' && item.payment_type === 'loan' && (
-                      <span className="text-red-600">+{fmt(item.amount)} ج</span>
+                      <span className="text-red-600">{fmt(item.amount)} ج <span className="text-xs font-normal">عليك</span></span>
                     )}
                     {item._type === 'payment' && item.payment_type !== 'loan' && (
-                      <span className="text-emerald-600">-{fmt(item.amount)} ج</span>
+                      <span className="text-emerald-600">{fmt(item.amount)} ج <span className="text-xs font-normal">ليك</span></span>
                     )}
                     {item._type === 'transfer_out' && (
-                      <span className="text-blue-600">-{fmtW(item.weight)} جم</span>
+                      <span className="text-blue-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">ليك</span></span>
                     )}
                     {item._type === 'transfer_in' && (
-                      <span className="text-purple-600">+{fmtW(item.weight)} جم</span>
+                      <span className="text-purple-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">عليك</span></span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-stone-400">{item.created_by_name}</td>
@@ -444,31 +444,31 @@ export default function TraderAccount() {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm">
                   {item._type === 'deal' && item.deal_type === 'buy' && (
-                    <span className="text-red-600">+{fmt(item.total_amount)} ج</span>
+                    <span className="text-red-600">{fmt(item.total_amount)} ج عليك</span>
                   )}
                   {item._type === 'deal' && item.deal_type === 'sell' && (
-                    <span className="text-emerald-600">-{fmt(item.total_amount)} ج</span>
+                    <span className="text-emerald-600">{fmt(item.total_amount)} ج ليك</span>
                   )}
                   {item._type === 'deal' && item.deal_type === 'work' && (
-                    <span className="text-red-600">+{fmtW(item.weight)} جم{item.total_amount > 0 ? ` + ${fmt(item.total_amount)} ج` : ''}</span>
+                    <span className="text-red-600">{fmtW(item.weight)} جم عليك{item.total_amount > 0 ? ` + ${fmt(item.total_amount)} ج` : ''}</span>
                   )}
                   {item._type === 'deal' && item.deal_type === 'give' && (
-                    <span className="text-emerald-600">-{fmtW(item.weight)} جم</span>
+                    <span className="text-emerald-600">{fmtW(item.weight)} جم ليك</span>
                   )}
                   {item._type === 'deal' && item.deal_type === 'give_local_bar' && (
-                    <span className="text-emerald-600">-{fmtW(item.weight)} جم{item.total_amount > 0 ? ` - ${fmt(item.total_amount)} ج` : ''}</span>
+                    <span className="text-emerald-600">{fmtW(item.weight)} جم ليك{item.total_amount > 0 ? ` + ${fmt(item.total_amount)} ج` : ''}</span>
                   )}
                   {item._type === 'payment' && item.payment_type === 'loan' && (
-                    <span className="text-red-600">+{fmt(item.amount)} ج</span>
+                    <span className="text-red-600">{fmt(item.amount)} ج عليك</span>
                   )}
                   {item._type === 'payment' && item.payment_type !== 'loan' && (
-                    <span className="text-emerald-600">-{fmt(item.amount)} ج</span>
+                    <span className="text-emerald-600">{fmt(item.amount)} ج ليك</span>
                   )}
                   {item._type === 'transfer_out' && (
-                    <span className="text-blue-600">-{fmtW(item.weight)} جم</span>
+                    <span className="text-blue-600">{fmtW(item.weight)} جم ليك</span>
                   )}
                   {item._type === 'transfer_in' && (
-                    <span className="text-purple-600">+{fmtW(item.weight)} جم</span>
+                    <span className="text-purple-600">{fmtW(item.weight)} جم عليك</span>
                   )}
                 </span>
                 <div className="flex gap-1">
