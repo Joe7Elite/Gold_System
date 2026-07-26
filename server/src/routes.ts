@@ -362,6 +362,34 @@ router.delete('/reset-all', auth, (req: AuthRequest, res: Response): void => {
   res.json({ message: 'تم مسح كل البيانات' });
 });
 
+// ==================== SABER FOUDA ====================
+router.get('/saber/balance', auth, (_req: AuthRequest, res: Response): void => {
+  const trader = db.prepare("SELECT * FROM traders WHERE name LIKE '%صابر فوده%' AND is_active=1").get() as any;
+  if (!trader) { res.json({ trader: null, karat_18: { received: 0, returned: 0, balance: 0 }, karat_21: { received: 0, returned: 0, balance: 0 }, craftsmanship: 0, transactions: [], transfers: [] }); return; }
+  const id = trader.id;
+  const recv18 = (db.prepare("SELECT COALESCE(SUM(original_weight),0) as t FROM gold_deals WHERE trader_id=? AND deal_type='work' AND original_karat=18").get(id) as any).t;
+  const recv21 = (db.prepare("SELECT COALESCE(SUM(original_weight),0) as t FROM gold_deals WHERE trader_id=? AND deal_type='work' AND original_karat=21").get(id) as any).t;
+  const ret18 = (db.prepare("SELECT COALESCE(SUM(original_weight),0) as t FROM gold_deals WHERE trader_id=? AND deal_type IN ('give','give_local_bar') AND original_karat=18").get(id) as any).t;
+  const ret21 = (db.prepare("SELECT COALESCE(SUM(original_weight),0) as t FROM gold_deals WHERE trader_id=? AND deal_type IN ('give','give_local_bar') AND original_karat=21").get(id) as any).t;
+  const transOut = (db.prepare("SELECT COALESCE(SUM(weight),0) as t FROM gold_transfers WHERE from_trader_id=?").get(id) as any).t;
+  const craft = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM gold_deals WHERE trader_id=? AND deal_type='work'").get(id) as any).t;
+  const txns = db.prepare('SELECT gd.*, u.full_name as created_by_name FROM gold_deals gd LEFT JOIN users u ON gd.created_by=u.id WHERE gd.trader_id=? ORDER BY gd.created_at DESC LIMIT 50').all(id);
+  const transfers = db.prepare('SELECT gt.*, t.name as to_trader_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders t ON gt.to_trader_id=t.id LEFT JOIN users u ON gt.created_by=u.id WHERE gt.from_trader_id=? ORDER BY gt.created_at DESC LIMIT 50').all(id);
+  res.json({ trader, karat_18: { received: recv18, returned: ret18, balance: recv18 - ret18 }, karat_21: { received: recv21, returned: ret21 + transOut, balance: recv21 - ret21 - transOut }, craftsmanship: craft, transactions: txns, transfers });
+});
+
+router.delete('/saber/reset', auth, (req: AuthRequest, res: Response): void => {
+  const caller = db.prepare('SELECT is_protected FROM users WHERE id=?').get(req.user!.id) as any;
+  if (!caller?.is_protected) { res.status(403).json({ error: 'مسموح بس للحساب الأساسي' }); return; }
+  const trader = db.prepare("SELECT * FROM traders WHERE name LIKE '%صابر فوده%' AND is_active=1").get() as any;
+  if (!trader) { res.status(404).json({ error: 'التاجر مش موجود' }); return; }
+  db.prepare('DELETE FROM gold_deals WHERE trader_id=?').run(trader.id);
+  db.prepare('DELETE FROM cash_payments WHERE trader_id=?').run(trader.id);
+  db.prepare('DELETE FROM gold_transfers WHERE from_trader_id=? OR to_trader_id=?').run(trader.id, trader.id);
+  logAudit(req.user!.id, 'delete', 'saber_reset', trader.id, 'تصفير حساب صابر فوده');
+  res.json({ message: 'تم تصفير الحساب' });
+});
+
 // ==================== DASHBOARD ====================
 router.get('/dashboard', auth, (_req: AuthRequest, res: Response): void => {
   const totalTraders = (db.prepare('SELECT COUNT(*) as c FROM traders WHERE is_active=1').get() as any).c;

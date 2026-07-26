@@ -7,6 +7,7 @@ import Traders from './pages/Traders';
 import TraderAccount from './pages/TraderAccount';
 import AuditLog from './pages/AuditLog';
 import Users from './pages/Users';
+import SaberFouda from './pages/SaberFouda';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="traders" element={<Traders />} />
         <Route path="traders/:id" element={<TraderAccount />} />
+        <Route path="saber" element={<SaberFouda />} />
         <Route path="audit" element={<AdminRoute><AuditLog /></AdminRoute>} />
         <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
       </Route>
