@@ -88,10 +88,11 @@ export default function Traders() {
         const newId = res.data.id;
         // لو فيه رصيد افتتاحي (وزن أو فلوس) سجله
         if (form.init_weight && Number(form.init_weight) > 0) {
+          const isGoldAgainstMe = form.init_weight_type === 'عليك';
           await api.post('/transactions/deal', {
             trader_id: newId, weight: Number(form.init_weight), price_per_gram: 0,
             total_amount: 0, original_karat: 21, original_weight: Number(form.init_weight),
-            deal_type: 'buy', notes: 'رصيد افتتاحي - دهب',
+            deal_type: isGoldAgainstMe ? 'work' : 'buy', notes: 'رصيد افتتاحي - دهب',
           });
         }
         if (form.init_money && Number(form.init_money) > 0) {
@@ -152,9 +153,16 @@ export default function Traders() {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
         const weight21 = toWeight21(origWeight, karat, false);
+        let toTraderId = form.to_trader_id;
+        // لو التاجر مش موجود، أنشئه أول
+        if (!toTraderId && form.to_trader_name?.trim()) {
+          const res = await api.post('/traders', { name: form.to_trader_name.trim() });
+          toTraderId = res.data.id;
+        }
+        if (!toTraderId) { setFormError('اختار أو اكتب اسم التاجر'); setSubmitting(false); return; }
         await api.post('/transactions/transfer', {
           from_trader_id: form.from_trader_id,
-          to_trader_id: form.to_trader_id,
+          to_trader_id: toTraderId,
           weight: weight21,
           original_karat: karat,
           original_weight: origWeight,
@@ -376,6 +384,23 @@ export default function Traders() {
                   onChange={(e) => setForm({ ...form, init_weight: e.target.value })}
                   className="input-field"
                 />
+                {form.init_weight && Number(form.init_weight) > 0 && (
+                  <div>
+                    <p className="text-xs text-stone-400 mb-1.5">الدهب ده عليك ولا ليك؟</p>
+                    <div className="flex gap-2 bg-stone-100 rounded-xl p-1">
+                      <button type="button"
+                        onClick={() => setForm({ ...form, init_weight_type: 'ليك' })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${(form.init_weight_type || 'ليك') === 'ليك' ? 'bg-emerald-500 text-white shadow-sm' : 'text-stone-500'}`}>
+                        ليك
+                      </button>
+                      <button type="button"
+                        onClick={() => setForm({ ...form, init_weight_type: 'عليك' })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${form.init_weight_type === 'عليك' ? 'bg-red-500 text-white shadow-sm' : 'text-stone-500'}`}>
+                        عليك
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <input
                   type="number" step="any" min="0"
                   placeholder="رصيد الفلوس (جنيه)"
@@ -390,12 +415,12 @@ export default function Traders() {
                       <button type="button"
                         onClick={() => setForm({ ...form, init_money_type: 'loan' })}
                         className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${(form.init_money_type || 'loan') === 'loan' ? 'bg-red-500 text-white shadow-sm' : 'text-stone-500'}`}>
-                        عليك (مديون)
+                        عليك
                       </button>
                       <button type="button"
                         onClick={() => setForm({ ...form, init_money_type: 'payment' })}
                         className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${form.init_money_type === 'payment' ? 'bg-emerald-500 text-white shadow-sm' : 'text-stone-500'}`}>
-                        ليك (دائن)
+                        ليك
                       </button>
                     </div>
                   </div>
@@ -787,21 +812,25 @@ export default function Traders() {
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
-            <select
-              value={form.to_trader_id || ''}
-              onChange={(e) =>
-                setForm({ ...form, to_trader_id: Number(e.target.value) })
-              }
-              className="input-field"
-              required
-            >
-              <option value="">لـ تاجر...</option>
-              {traders
-                .filter((t) => t.id !== form.from_trader_id)
-                .map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+            <div>
+              <input
+                list="to-trader-list"
+                placeholder="لـ تاجر... (اختار أو اكتب اسم جديد)"
+                value={form.to_trader_name || ''}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  const match = traders.find((t) => t.name === name);
+                  setForm({ ...form, to_trader_name: name, to_trader_id: match?.id || 0 });
+                }}
+                className="input-field"
+                required
+              />
+              <datalist id="to-trader-list">
+                {traders.filter((t) => t.id !== form.from_trader_id).map((t) => (
+                  <option key={t.id} value={t.name} />
                 ))}
-            </select>
+              </datalist>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <input
                 type="number"
