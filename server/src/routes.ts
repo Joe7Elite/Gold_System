@@ -155,7 +155,7 @@ router.post('/transactions/deal', auth, (req: AuthRequest, res: Response): void 
   let total = 0;
 
   if (type === 'buy' || type === 'sell') {
-    if (!price_per_gram) { res.status(400).json({ error: 'سعر الجرام مطلوب' }); return; }
+    if (price_per_gram == null || price_per_gram === '') { res.status(400).json({ error: 'سعر الجرام مطلوب' }); return; }
     price = price_per_gram;
     total = weight * price;
   } else if (type === 'work') {
