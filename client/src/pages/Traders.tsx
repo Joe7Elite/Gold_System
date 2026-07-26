@@ -6,7 +6,7 @@ import Modal from '../components/ui/Modal';
 import { PageLoader } from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 
-type Modal = 'none' | 'add-trader' | 'deal' | 'payment' | 'transfer' | 'work' | 'give';
+type Modal = 'none' | 'add-trader' | 'deal' | 'payment' | 'transfer' | 'work' | 'give' | 'gold-menu';
 type DealType = 'buy' | 'sell';
 type PaymentType = 'payment' | 'loan';
 type GiveType = 'give' | 'give_local_bar';
@@ -178,42 +178,10 @@ export default function Traders() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <h1 className="text-xl md:text-2xl font-bold text-stone-800">التجار</h1>
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => openModal('add-trader')}
-            className="btn-primary"
-          >
-            + تاجر جديد
-          </button>
-          <button
-            onClick={() => openModal('deal')}
-            className="btn-secondary"
-          >
-            قطع
-          </button>
-          <button
-            onClick={() => openModal('work')}
-            className="btn-secondary"
-          >
-            استلام شغل
-          </button>
-          <button
-            onClick={() => openModal('give')}
-            className="btn-secondary"
-          >
-            إدي للتاجر
-          </button>
-          <button
-            onClick={() => openModal('payment')}
-            className="btn-secondary"
-          >
-            عملية فلوس
-          </button>
-          <button
-            onClick={() => openModal('transfer')}
-            className="btn-secondary"
-          >
-            تحويل دهب
-          </button>
+          <button onClick={() => openModal('add-trader')} className="btn-primary">+ تاجر جديد</button>
+          <button onClick={() => openModal('gold-menu')} className="btn-secondary text-base px-5 py-2.5">دهب</button>
+          <button onClick={() => openModal('payment')} className="btn-secondary text-base px-5 py-2.5">فلوس</button>
+          <button onClick={() => openModal('transfer')} className="btn-secondary text-base px-5 py-2.5">تحويل</button>
         </div>
       </div>
 
@@ -241,7 +209,6 @@ export default function Traders() {
               <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">التليفون</th>
               <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">رصيد الفلوس</th>
               <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">رصيد الدهب (جم)</th>
-              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">إجراءات</th>
             </tr>
           </thead>
           <tbody>
@@ -274,51 +241,11 @@ export default function Traders() {
                     {fmtW(t.gold_balance)} جم
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      onClick={() => openModal('deal', { trader_id: t.id })}
-                      className="btn-ghost text-xs px-2 py-1"
-                    >
-                      قطع
-                    </button>
-                    <button
-                      onClick={() => openModal('work', { trader_id: t.id })}
-                      className="btn-ghost text-xs px-2 py-1"
-                    >
-                      شغل
-                    </button>
-                    <button
-                      onClick={() => openModal('payment', { trader_id: t.id })}
-                      className="btn-ghost text-xs px-2 py-1"
-                    >
-                      دفع
-                    </button>
-                    <button
-                      onClick={() => {
-                        openModal('payment', { trader_id: t.id });
-                        setPaymentType('loan');
-                      }}
-                      className="btn-ghost text-xs px-2 py-1"
-                    >
-                      سلفة
-                    </button>
-                    <button
-                      onClick={() => openModal('transfer', { from_trader_id: t.id })}
-                      className="btn-ghost text-xs px-2 py-1"
-                    >
-                      تحويل
-                    </button>
-                    {(user as any)?.is_protected ? (
-                      <button
-                        onClick={() => deleteTrader(t)}
-                        className="btn-ghost text-xs px-2 py-1 text-red-500 hover:bg-red-50"
-                      >
-                        حذف
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
+                {(user as any)?.is_protected && (
+                  <td className="px-4 py-3">
+                    <button onClick={() => deleteTrader(t)} className="btn-ghost text-xs text-red-500 hover:bg-red-50 px-2 py-1">حذف</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -366,56 +293,41 @@ export default function Traders() {
                 </div>
               </div>
 
-              {/* Bottom: action buttons */}
-              <div className="flex flex-wrap gap-1">
-                <button
-                  onClick={() => openModal('deal', { trader_id: t.id })}
-                  className="btn-ghost text-xs px-2 py-1"
-                >
-                  قطع
-                </button>
-                <button
-                  onClick={() => openModal('work', { trader_id: t.id })}
-                  className="btn-ghost text-xs px-2 py-1"
-                >
-                  شغل
-                </button>
-                <button
-                  onClick={() => openModal('payment', { trader_id: t.id })}
-                  className="btn-ghost text-xs px-2 py-1"
-                >
-                  دفع
-                </button>
-                <button
-                  onClick={() => {
-                    openModal('payment', { trader_id: t.id });
-                    setPaymentType('loan');
-                  }}
-                  className="btn-ghost text-xs px-2 py-1"
-                >
-                  سلفة
-                </button>
-                <button
-                  onClick={() => openModal('transfer', { from_trader_id: t.id })}
-                  className="btn-ghost text-xs px-2 py-1"
-                >
-                  تحويل
-                </button>
-                {(user as any)?.is_protected ? (
-                  <button
-                    onClick={() => deleteTrader(t)}
-                    className="btn-ghost text-xs px-2 py-1 text-red-500 hover:bg-red-50"
-                  >
-                    حذف
-                  </button>
-                ) : null}
-              </div>
+              {/* Bottom: delete button (protected user only) */}
+              {(user as any)?.is_protected && (
+                <div className="mt-2 pt-2 border-t border-stone-100">
+                  <button onClick={() => deleteTrader(t)} className="btn-ghost text-xs text-red-500 hover:bg-red-50 px-2 py-1">حذف</button>
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
 
       {/* ===== MODALS ===== */}
+
+      {/* ── Gold Menu (اختيار نوع عملية الدهب) ── */}
+      {modal === 'gold-menu' && (
+        <Modal title="عملية دهب" onClose={closeModal}>
+          <div className="grid grid-cols-1 gap-2">
+            <button onClick={() => { closeModal(); setTimeout(() => openModal('deal'), 100); }}
+              className="w-full text-right px-5 py-4 rounded-xl bg-stone-50 hover:bg-amber-50 hover:border-amber-200 border border-stone-200 transition-all">
+              <p className="font-bold text-stone-800 text-base">قطع</p>
+              <p className="text-stone-400 text-xs mt-0.5">شراء أو بيع دهب بسعر محدد</p>
+            </button>
+            <button onClick={() => { closeModal(); setTimeout(() => openModal('work'), 100); }}
+              className="w-full text-right px-5 py-4 rounded-xl bg-stone-50 hover:bg-orange-50 hover:border-orange-200 border border-stone-200 transition-all">
+              <p className="font-bold text-stone-800 text-base">استلام شغل</p>
+              <p className="text-stone-400 text-xs mt-0.5">استلام شغل من التاجر + مصنعية</p>
+            </button>
+            <button onClick={() => { closeModal(); setTimeout(() => openModal('give'), 100); }}
+              className="w-full text-right px-5 py-4 rounded-xl bg-stone-50 hover:bg-emerald-50 hover:border-emerald-200 border border-stone-200 transition-all">
+              <p className="font-bold text-stone-800 text-base">إدي للتاجر</p>
+              <p className="text-stone-400 text-xs mt-0.5">لوجوهات أو سبيكة بلدي</p>
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {/* ── Add Trader ── */}
       {modal === 'add-trader' && (
