@@ -241,12 +241,12 @@ export default function Traders() {
                         : 'text-stone-400'
                     }`}
                   >
-                    {fmt(t.money_balance)} ج
+                    {fmt(Math.abs(t.money_balance))} ج
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`font-bold ${t.gold_balance > 0 ? 'text-emerald-600' : t.gold_balance < 0 ? 'text-red-600' : 'text-stone-400'}`}>
-                    {fmtW(t.gold_balance)} جم
+                    {fmtW(Math.abs(t.gold_balance))} جم
                   </span>
                 </td>
                 {(user as any)?.is_protected && (
@@ -292,12 +292,12 @@ export default function Traders() {
                       ? 'text-green-600'
                       : 'text-stone-400'
                   }`}>
-                    {fmt(t.money_balance)} ج
+                    {fmt(Math.abs(t.money_balance))} ج
                   </p>
                 </div>
                 <div className="bg-stone-50 rounded-xl px-3 py-2 text-center">
                   <p className="text-xs text-stone-400 mb-0.5">رصيد الدهب</p>
-                  <p className={`font-bold text-sm ${t.gold_balance > 0 ? 'text-emerald-600' : t.gold_balance < 0 ? 'text-red-600' : 'text-stone-400'}`}>{fmtW(t.gold_balance)} جم</p>
+                  <p className={`font-bold text-sm ${t.gold_balance > 0 ? 'text-emerald-600' : t.gold_balance < 0 ? 'text-red-600' : 'text-stone-400'}`}>{fmtW(Math.abs(t.gold_balance))} جم</p>
                 </div>
               </div>
 
