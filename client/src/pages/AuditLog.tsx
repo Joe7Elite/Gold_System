@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api';
+import { useAuth } from '../context/AuthContext';
 import Badge from '../components/ui/Badge';
 import { PageLoader } from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
@@ -7,16 +8,47 @@ import EmptyState from '../components/ui/EmptyState';
 export default function AuditLog() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
+  const { user } = useAuth();
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
     api.get('/audit').then((r) => setLogs(r.data)).finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleReset = async () => {
+    if (!window.confirm('متأكد إنك عايز تمسح كل البيانات؟\nالعملية دي مش هترجع!')) return;
+    if (!window.confirm('تأكيد أخير: كل التجار والعمليات والأرصدة هتتمسح نهائياً. متأكد؟')) return;
+    setResetting(true);
+    try {
+      await api.delete('/reset-all');
+      alert('تم مسح كل البيانات بنجاح');
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'حصل مشكلة');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   if (loading) return <PageLoader />;
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-xl md:text-2xl font-bold text-stone-800 mb-5">سجل التعديلات</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl md:text-2xl font-bold text-stone-800">سجل التعديلات</h1>
+        {(user as any)?.is_protected && (
+          <button
+            onClick={handleReset}
+            disabled={resetting}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50"
+          >
+            {resetting ? 'جاري المسح...' : 'مسح كل البيانات'}
+          </button>
+        )}
+      </div>
 
       {/* Desktop */}
       <div className="hidden md:block card overflow-hidden">

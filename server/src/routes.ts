@@ -347,6 +347,21 @@ router.get('/audit', auth, adminOnly, (_req: AuthRequest, res: Response): void =
   res.json(logs);
 });
 
+// مسح كل البيانات (للحساب المحمي بس)
+router.delete('/reset-all', auth, (req: AuthRequest, res: Response): void => {
+  const caller = db.prepare('SELECT is_protected FROM users WHERE id=?').get(req.user!.id) as any;
+  if (!caller?.is_protected) { res.status(403).json({ error: 'مسموح بس للحساب الأساسي' }); return; }
+
+  db.prepare('DELETE FROM gold_deals').run();
+  db.prepare('DELETE FROM cash_payments').run();
+  db.prepare('DELETE FROM gold_transfers').run();
+  db.prepare('DELETE FROM traders').run();
+  db.prepare('DELETE FROM audit_log').run();
+
+  logAudit(req.user!.id, 'delete', 'system', 0, 'مسح كل البيانات - إعادة تعيين النظام');
+  res.json({ message: 'تم مسح كل البيانات' });
+});
+
 // ==================== DASHBOARD ====================
 router.get('/dashboard', auth, (_req: AuthRequest, res: Response): void => {
   const totalTraders = (db.prepare('SELECT COUNT(*) as c FROM traders WHERE is_active=1').get() as any).c;
