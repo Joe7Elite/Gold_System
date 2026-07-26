@@ -25,56 +25,53 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-950 via-stone-900 to-stone-800 relative overflow-hidden">
-      {/* Decorative radial gold glow */}
-      <div className="bg-gold-500/10 rounded-full blur-3xl absolute w-[600px] h-[600px] -top-32 -left-32 pointer-events-none" />
-      <div className="bg-gold-500/10 rounded-full blur-3xl absolute w-[400px] h-[400px] -bottom-24 -right-24 pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-[#0c0a09] relative overflow-hidden">
+      {/* Radial gold glow background */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 60% 40%, rgba(180,120,20,0.08) 0%, transparent 70%)' }} />
+
+      {/* Decorative glow orb */}
+      <div className="absolute -top-32 -right-32 w-64 h-64 bg-amber-600/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Card */}
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-md animate-slide-up relative z-10">
+      <div className="bg-stone-900/80 backdrop-blur-xl border border-amber-900/30 rounded-3xl shadow-2xl p-8 w-full max-w-md animate-slide-up relative z-10">
 
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
-            <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-white">
-              <path d="M12 2L2 12l10 10 10-10L12 2z" fill="currentColor" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-stone-800">نظام حسابات الذهب</h1>
-          <p className="text-stone-400 mt-1 text-sm">سجل دخول للمتابعة</p>
-        </div>
+        <img src="/logo.png" alt="المصطفى للذهب" className="h-24 mx-auto mb-6" />
+
+        {/* Subtitle */}
+        <p className="text-stone-400 text-sm text-center mb-6">تسجيل الدخول</p>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
+            <div className="bg-red-900/30 border border-red-800/50 text-red-400 rounded-xl px-4 py-3 text-sm">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-semibold text-stone-600 mb-1.5">
+            <label className="block text-sm font-medium text-stone-400 mb-1.5">
               اسم المستخدم
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="input-field"
+              className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder:text-stone-500 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all"
               placeholder="admin"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-stone-600 mb-1.5">
+            <label className="block text-sm font-medium text-stone-400 mb-1.5">
               كلمة السر
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
+              className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder:text-stone-500 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all"
               required
             />
           </div>
@@ -82,7 +79,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full py-3 mt-2"
+            className="w-full py-3 bg-gradient-to-l from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-900/30 transition-all"
           >
             {loading ? 'جاري الدخول...' : 'دخول'}
           </button>

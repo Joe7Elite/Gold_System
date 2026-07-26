@@ -39,8 +39,8 @@ export default function Layout() {
     const active = isActive(path, exact);
     return `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium ${
       active
-        ? 'bg-amber-500/15 text-amber-400 border-r-2 border-amber-400'
-        : 'text-stone-400 hover:bg-stone-800 hover:text-stone-200'
+        ? 'bg-amber-600/15 text-amber-400 border-r-2 border-amber-400'
+        : 'text-stone-500 hover:bg-stone-800/50 hover:text-stone-300'
     }`;
   };
 
@@ -70,19 +70,16 @@ export default function Layout() {
 
       {/* ── Desktop Sidebar (hidden on mobile) ── */}
       <aside
-        className={`hidden md:flex flex-col fixed inset-y-0 right-0 w-64 bg-stone-950 z-50 ${
+        className={`hidden md:flex flex-col fixed inset-y-0 right-0 w-64 bg-[#0c0a09] border-l border-amber-900/20 z-50 ${
           showStatusBar ? 'pt-7' : ''
         }`}
       >
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-stone-800">
+        <div className="px-5 py-5 border-b border-amber-900/20">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-amber-400 text-lg leading-none">◆</span>
-            <h1 className="text-base font-bold text-amber-400 leading-snug">
-              نظام حسابات الذهب
-            </h1>
+            <img src="/logo.png" alt="المصطفى للذهب" className="h-12" />
           </div>
-          <p className="text-xs text-stone-400 pr-6 truncate">{user?.full_name}</p>
+          <p className="text-xs text-stone-400 truncate">{user?.full_name}</p>
         </div>
 
         {/* Nav */}
@@ -139,10 +136,10 @@ export default function Layout() {
         </nav>
 
         {/* Logout */}
-        <div className="p-3 border-t border-stone-800">
+        <div className="p-3 border-t border-amber-900/20">
           <button
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-stone-700 text-stone-400 hover:border-stone-500 hover:text-stone-200 transition-colors text-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-stone-800 text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition-colors text-sm"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -156,6 +153,10 @@ export default function Layout() {
 
       {/* ── Main Content ── */}
       <div className="flex-1 md:mr-64 flex flex-col min-h-screen">
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-center px-4 py-3 bg-[#0c0a09] border-b border-stone-800">
+          <img src="/logo.png" alt="المصطفى للذهب" className="h-8" />
+        </header>
         <main
           className={`flex-1 p-4 md:p-6 pb-20 md:pb-6 ${showStatusBar ? 'mt-7' : ''}`}
         >
@@ -164,7 +165,7 @@ export default function Layout() {
       </div>
 
       {/* ── Mobile Bottom Navigation Bar ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200 shadow-lg flex items-stretch">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0c0a09] border-t border-stone-800 shadow-lg flex items-stretch">
         {/* Dashboard */}
         <NavLink
           to="/"
