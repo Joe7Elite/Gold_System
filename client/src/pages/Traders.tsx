@@ -751,14 +751,14 @@ export default function Traders() {
                 {giveType === 'give_local_bar' && form.fineness && (
                   <div className="text-stone-600">الوزن بعيار 21: <span className="font-bold text-amber-800">{((Number(form.weight) * Number(form.fineness)) / 875).toFixed(3)} جم</span></div>
                 )}
-                <div className="text-pink-700 font-medium">
-                  هيتخصم {giveType === 'give_local_bar' && form.fineness
+                <div className="text-emerald-700 font-medium">
+                  {giveType === 'give_local_bar' && form.fineness
                     ? ((Number(form.weight) * Number(form.fineness)) / 875).toFixed(3)
-                    : form.weight} جم من رصيد جراماتك
+                    : form.weight} جم <span className="font-bold">ليك</span>
                 </div>
                 {giveType === 'give_local_bar' && (
-                  <div className="text-green-700 font-medium">
-                    + هيتخصم {fmt(Number(form.weight) * 8)} جنيه من الفلوس اللي عليك (8ج × {form.weight} جرام)
+                  <div className="text-emerald-700 font-medium">
+                    + {fmt(Number(form.weight) * 8)} جنيه <span className="font-bold">ليك</span> (8ج × {form.weight} جرام)
                   </div>
                 )}
               </div>
