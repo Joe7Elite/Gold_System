@@ -331,10 +331,10 @@ export default function TraderAccount() {
                       <span className="text-emerald-600">{fmt(item.amount)} ج <span className="text-xs font-normal">ليك</span></span>
                     )}
                     {item._type === 'transfer_out' && (
-                      <span className="text-blue-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">ليك</span></span>
+                      <span className="text-red-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">عليك</span></span>
                     )}
                     {item._type === 'transfer_in' && (
-                      <span className="text-purple-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">عليك</span></span>
+                      <span className="text-emerald-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">ليك</span></span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-stone-400">{item.created_by_name}</td>
@@ -441,10 +441,10 @@ export default function TraderAccount() {
                     <span className="text-emerald-600">{fmt(item.amount)} ج ليك</span>
                   )}
                   {item._type === 'transfer_out' && (
-                    <span className="text-blue-600">{fmtW(item.weight)} جم ليك</span>
+                    <span className="text-red-600">{fmtW(item.weight)} جم عليك</span>
                   )}
                   {item._type === 'transfer_in' && (
-                    <span className="text-purple-600">{fmtW(item.weight)} جم عليك</span>
+                    <span className="text-emerald-600">{fmtW(item.weight)} جم ليك</span>
                   )}
                 </span>
                 <div className="flex gap-1">
