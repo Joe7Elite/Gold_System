@@ -105,13 +105,6 @@ export default function Layout() {
             </svg>
             التجار
           </NavLink>
-          <NavLink to="/saber" className={lnk} onClick={handleNav}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
-            </svg>
-            صابر فوده
-          </NavLink>
 
           {/* Admin-only links */}
           {user?.role === 'admin' && (
@@ -161,13 +154,8 @@ export default function Layout() {
       {/* ── Main Content ── */}
       <div className="flex-1 md:mr-64 flex flex-col min-h-screen">
         {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-[#0c0a09] border-b border-stone-800">
+        <header className="md:hidden flex items-center justify-center px-4 py-3 bg-[#0c0a09] border-b border-stone-800">
           <img src="/logo.png" alt="المصطفى للذهب" className="h-8" />
-          <button onClick={logout} className="text-stone-500 hover:text-red-400 transition-colors p-1">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-            </svg>
-          </button>
         </header>
         <main
           className={`flex-1 p-4 md:p-6 pb-20 md:pb-6 ${showStatusBar ? 'mt-7' : ''}`}
@@ -213,18 +201,6 @@ export default function Layout() {
               <span className={`text-[10px] font-medium ${isActive ? 'text-amber-500' : 'text-stone-400'}`}>
                 التجار
               </span>
-            </>
-          )}
-        </NavLink>
-
-        {/* صابر فوده */}
-        <NavLink to="/saber" className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors">
-          {({ isActive }) => (
-            <>
-              <svg className={`w-5 h-5 ${isActive ? 'text-amber-500' : 'text-stone-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-              </svg>
-              <span className={`text-[10px] font-medium ${isActive ? 'text-amber-500' : 'text-stone-400'}`}>صابر</span>
             </>
           )}
         </NavLink>
