@@ -3,16 +3,32 @@
   "short_name": "المصطفى",
   "description": "نظام إدارة حسابات المصطفى للذهب",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0c0a09",
   "theme_color": "#b45309",
   "dir": "rtl",
   "lang": "ar",
+  "categories": ["business", "finance"],
   "icons": [
     {
       "src": "/logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
