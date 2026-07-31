@@ -174,7 +174,11 @@ export async function initDb() {
   }
   db.prepare('UPDATE users SET is_protected = 1 WHERE username = ?').run('Joe7Elite');
 
-  // حسابات ثابتة: صابر فوده عيار 18 و عيار 21
+  ensurePinnedTraders();
+}
+
+// حسابات ثابتة: صابر فوده عيار 18 و عيار 21 (متتمسحش أبداً)
+export function ensurePinnedTraders() {
   const pinned = [
     { name: 'صابر فوده 18', base_karat: 18 },
     { name: 'صابر فوده 21', base_karat: 21 },

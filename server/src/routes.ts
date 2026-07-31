@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import db from './db';
+import db, { ensurePinnedTraders } from './db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -393,10 +393,14 @@ router.delete('/reset-all', auth, (req: AuthRequest, res: Response): void => {
   db.prepare('DELETE FROM gold_deals').run();
   db.prepare('DELETE FROM cash_payments').run();
   db.prepare('DELETE FROM gold_transfers').run();
-  db.prepare('DELETE FROM traders').run();
+  // حسابات صابر فوده ثابتة: بتتصفر بس ومبتتمسحش
+  db.prepare('DELETE FROM traders WHERE COALESCE(is_pinned,0) = 0').run();
   db.prepare('DELETE FROM audit_log').run();
 
-  logAudit(req.user!.id, 'delete', 'system', 0, 'مسح كل البيانات - إعادة تعيين النظام');
+  // نتأكد إن حسابات صابر فوده موجودة ومصفرة
+  ensurePinnedTraders();
+
+  logAudit(req.user!.id, 'delete', 'system', 0, 'مسح كل البيانات - إعادة تعيين النظام (حسابات صابر فوده اتصفرت)');
   res.json({ message: 'تم مسح كل البيانات' });
 });
 
