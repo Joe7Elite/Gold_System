@@ -106,6 +106,15 @@ export default function Layout() {
             التجار
           </NavLink>
 
+          {/* Saber Fouda */}
+          <NavLink to="/saber" className={() => sidebarLinkClass('/saber')}>
+            {/* Star icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            صابر فوده
+          </NavLink>
+
           {/* Admin-only links */}
           {user?.role === 'admin' && (
             <>
@@ -200,6 +209,23 @@ export default function Layout() {
               </svg>
               <span className={`text-[10px] font-medium ${isActive ? 'text-amber-500' : 'text-stone-400'}`}>
                 التجار
+              </span>
+            </>
+          )}
+        </NavLink>
+
+        {/* Saber Fouda */}
+        <NavLink
+          to="/saber"
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors"
+        >
+          {({ isActive }) => (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`w-5 h-5 ${isActive ? 'text-amber-500' : 'text-stone-400'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              <span className={`text-[10px] font-medium ${isActive ? 'text-amber-500' : 'text-stone-400'}`}>
+                صابر فوده
               </span>
             </>
           )}

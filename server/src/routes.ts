@@ -115,6 +115,19 @@ router.delete('/traders/:id', auth, (req: AuthRequest, res: Response): void => {
   res.json({ message: 'تم الحذف' });
 });
 
+// صفر حساب تاجر واحد (يمسح كل عملياته ويبدأ من الأول)
+router.delete('/traders/:id/reset', auth, (req: AuthRequest, res: Response): void => {
+  const trader = db.prepare('SELECT * FROM traders WHERE id = ?').get(req.params.id) as any;
+  if (!trader) { res.status(404).json({ error: 'التاجر مش موجود' }); return; }
+
+  db.prepare('DELETE FROM gold_deals WHERE trader_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM cash_payments WHERE trader_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM gold_transfers WHERE from_trader_id = ? OR to_trader_id = ?').run(req.params.id, req.params.id);
+
+  logAudit(req.user!.id, 'delete', 'traders', +req.params.id, `صفر حساب: ${trader.name}`, trader);
+  res.json({ message: 'تم تصفير الحساب' });
+});
+
 // ==== كشف حساب ====
 router.get('/traders/:id/statement', auth, (req: AuthRequest, res: Response): void => {
   const trader = db.prepare('SELECT * FROM traders WHERE id = ?').get(req.params.id) as any;

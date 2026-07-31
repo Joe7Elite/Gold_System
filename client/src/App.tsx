@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Traders from './pages/Traders';
 import TraderAccount from './pages/TraderAccount';
+import SaberFouda from './pages/SaberFouda';
 import AuditLog from './pages/AuditLog';
 import Users from './pages/Users';
 
@@ -28,6 +29,7 @@ export default function App() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="traders" element={<Traders />} />
+        <Route path="saber" element={<SaberFouda />} />
         <Route path="traders/:id" element={<TraderAccount />} />
         <Route path="audit" element={<AdminRoute><AuditLog /></AdminRoute>} />
         <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
