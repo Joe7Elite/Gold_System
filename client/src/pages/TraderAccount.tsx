@@ -144,12 +144,14 @@ export default function TraderAccount() {
           notes: form.notes || '',
         });
       } else if (editModal === 'transfer') {
-        const karat = Number(form.karat) || 21;
         const origWeight = Number(form.weight);
-        // السيرفر بيحسب وزن كل تاجر بعيار حسابه
+        // الوزن بعيار حساب التاجر اللي بنحوّل منه، والسيرفر بيحوّله للتاني
+        const fromId = editItem._type === 'transfer_out' ? trader.id : editItem.from_trader_id;
+        const fromT = traders.find((x) => String(x.id) === String(fromId));
+        const fromBase = Number(fromT?.base_karat) === 18 ? 18 : 21;
         await api.put(`/transactions/transfer/${editItem.id}`, {
           weight: origWeight,
-          original_karat: karat,
+          original_karat: fromBase,
           original_weight: origWeight,
           notes: form.notes || '',
         });
@@ -738,33 +740,15 @@ export default function TraderAccount() {
             {formError && (
               <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm">{formError}</div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="number"
-                step="any"
-                placeholder="الوزن (جرام)"
-                value={form.weight || ''}
-                onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                className="input-field"
-                required
-              />
-              <select
-                value={form.karat || '21'}
-                onChange={(e) => setForm({ ...form, karat: e.target.value })}
-                className="input-field"
-              >
-                <option value="21">عيار 21</option>
-                <option value="24">عيار 24 (سبايك)</option>
-                <option value="18">عيار 18 (كسر)</option>
-                <option value="14">عيار 14</option>
-              </select>
-            </div>
-            {form.weight && Number(form.karat || 21) !== baseK && (
-              <div className="bg-blue-50 p-3 rounded-xl text-sm">
-                الوزن بعيار {baseK}:{' '}
-                <b>{((Number(form.weight) * Number(form.karat || 21)) / baseK).toFixed(2)} جم</b>
-              </div>
-            )}
+            <input
+              type="number"
+              step="any"
+              placeholder="الوزن (جرام)"
+              value={form.weight || ''}
+              onChange={(e) => setForm({ ...form, weight: e.target.value })}
+              className="input-field w-full"
+              required
+            />
             <textarea
               placeholder="ملاحظات"
               value={form.notes || ''}

@@ -122,12 +122,14 @@ export default function TraderOps({
         if (!fromId || !toId) { setFormError('اختار أو اكتب اسم التاجر'); setSubmitting(false); return; }
         if (String(fromId) === String(toId)) { setFormError('مينفعش تحول لنفس التاجر'); setSubmitting(false); return; }
         const origWeight = Number(form.weight);
-        // السيرفر بيحسب الوزن بعيار حساب كل تاجر لوحده
+        // الوزن المكتوب بيبقى بعيار حساب التاجر اللي بنحوّل منه
+        // والسيرفر بيحوّله لعيار حساب التاجر اللي بنحوّل له
+        const fromBase = baseKaratOf(fromId);
         await api.post('/transactions/transfer', {
           from_trader_id: fromId,
           to_trader_id: toId,
           weight: origWeight,
-          original_karat: effectiveKarat,
+          original_karat: fromBase,
           original_weight: origWeight,
           notes: form.notes || '',
         });
@@ -251,7 +253,7 @@ export default function TraderOps({
 
         {/* ── الوزن + العيار ── */}
         {kind !== 'payment' && (
-          <div className="grid grid-cols-2 gap-3">
+          kind === 'transfer' ? (
             <input
               type="number" step="any" min="0"
               placeholder="الوزن (جرام)"
@@ -260,19 +262,30 @@ export default function TraderOps({
               className="input-field"
               required
             />
-            {kind === 'give' && giveType === 'give_local_bar' ? (
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
               <input
                 type="number" step="any" min="0"
-                placeholder="عيار السبيكة (750, 817...)"
-                value={form.fineness || ''}
-                onChange={(e) => setForm({ ...form, fineness: e.target.value })}
+                placeholder="الوزن (جرام)"
+                value={form.weight || ''}
+                onChange={(e) => setForm({ ...form, weight: e.target.value })}
                 className="input-field"
                 required
               />
-            ) : (
-              <KaratSelect form={form} setForm={setForm} />
-            )}
-          </div>
+              {kind === 'give' && giveType === 'give_local_bar' ? (
+                <input
+                  type="number" step="any" min="0"
+                  placeholder="عيار السبيكة (750, 817...)"
+                  value={form.fineness || ''}
+                  onChange={(e) => setForm({ ...form, fineness: e.target.value })}
+                  className="input-field"
+                  required
+                />
+              ) : (
+                <KaratSelect form={form} setForm={setForm} />
+              )}
+            </div>
+          )
         )}
 
         {/* ── سعر الجرام ── */}
@@ -372,18 +385,17 @@ export default function TraderOps({
         {/* ── معاينة التحويل ── */}
         {kind === 'transfer' && form.weight && (() => {
           const w = Number(form.weight) || 0;
-          const k = effectiveKarat;
           const fBase = form.from_trader_id ? baseKaratOf(form.from_trader_id) : (Number(form.from_base_karat) === 18 ? 18 : 21);
           const tBase = form.to_trader_id ? baseKaratOf(form.to_trader_id) : (Number(form.to_base_karat) === 18 ? 18 : 21);
-          if (k === fBase && k === tBase) return null;
+          if (fBase === tBase) return null;
           return (
             <div className="card p-3 text-sm space-y-1">
               <div className="text-stone-600">
-                يتخصم من التاجر الأول: <span className="font-bold text-red-600">{((w * k) / fBase).toFixed(3)} جم</span>
+                يتخصم من التاجر الأول: <span className="font-bold text-red-600">{w.toFixed(3)} جم</span>
                 <span className="text-xs text-stone-400"> (عيار {fBase})</span>
               </div>
               <div className="text-stone-600">
-                يتضاف للتاجر التاني: <span className="font-bold text-emerald-700">{((w * k) / tBase).toFixed(3)} جم</span>
+                يتضاف للتاجر التاني: <span className="font-bold text-emerald-700">{((w * fBase) / tBase).toFixed(3)} جم</span>
                 <span className="text-xs text-stone-400"> (عيار {tBase})</span>
               </div>
             </div>
