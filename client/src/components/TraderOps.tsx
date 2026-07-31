@@ -5,10 +5,9 @@ import Modal from './ui/Modal';
 export type OpKind = 'none' | 'deal' | 'payment' | 'transfer' | 'work' | 'give';
 export type DealType = 'buy' | 'sell';
 export type PaymentType = 'payment' | 'loan';
-export type GiveType = 'give' | 'give_scrap' | 'give_local_bar';
+export type GiveType = 'give_scrap' | 'give_local_bar';
 
 export const GIVE_LABELS: Record<GiveType, string> = {
-  give: 'لوجوهات',
   give_scrap: 'كسر',
   give_local_bar: 'سبيكة بلدي',
 };
@@ -41,7 +40,7 @@ export default function TraderOps({
   const [submitting, setSubmitting] = useState(false);
   const [dealType, setDealType] = useState<DealType>(dt0 || 'buy');
   const [paymentType, setPaymentType] = useState<PaymentType>(pt0 || 'payment');
-  const [giveType, setGiveType] = useState<GiveType>(gt0 || 'give');
+  const [giveType, setGiveType] = useState<GiveType>(gt0 || 'give_scrap');
 
   if (kind === 'none') return null;
 
@@ -232,7 +231,7 @@ export default function TraderOps({
             label="النوع"
             value={giveType}
             onChange={(v) => setGiveType(v as GiveType)}
-            options={(giveOptions || (['give', 'give_scrap', 'give_local_bar'] as GiveType[])).map((v) => ({
+            options={(giveOptions || (['give_scrap', 'give_local_bar'] as GiveType[])).map((v) => ({
               value: v, label: GIVE_LABELS[v],
             }))}
           />

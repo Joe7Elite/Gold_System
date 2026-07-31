@@ -19,7 +19,7 @@ export default function TraderAccount() {
   // شريط العمليات
   const [opModal, setOpModal] = useState<OpKind>('none');
   const [opInitial, setOpInitial] = useState<any>({});
-  const [opGiveType, setOpGiveType] = useState<GiveType>('give');
+  const [opGiveType, setOpGiveType] = useState<GiveType>('give_scrap');
   const [opId, setOpId] = useState(0);
 
   // Edit modal state
@@ -200,7 +200,7 @@ export default function TraderAccount() {
     if (item._type === 'deal') {
       if (item.deal_type === 'sell') return <Badge label="بيع" color="orange" />;
       if (item.deal_type === 'work') return <Badge label="شغل" color="red" />;
-      if (item.deal_type === 'give') return <Badge label="لوجوهات" color="pink" />;
+      if (item.deal_type === 'give') return <Badge label="كسر" color="pink" />;
       if (item.deal_type === 'give_scrap') return <Badge label="كسر" color="pink" />;
       if (item.deal_type === 'give_local_bar') return <Badge label="سبيكة بلدي" color="yellow" />;
       return <Badge label="شراء" color="amber" />;
@@ -289,7 +289,7 @@ export default function TraderAccount() {
               openOp(
                 'give',
                 { trader_id: trader.id, _locked: true, original_karat: String(baseK) },
-                trader.is_pinned ? 'give_scrap' : 'give'
+                'give_scrap'
               )
             }
           />
@@ -398,7 +398,7 @@ export default function TraderAccount() {
                     {item._type === 'deal' && item.deal_type === 'work' && (
                       <div><span className="text-red-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">عليك</span></span>{item.total_amount > 0 && <span className="text-red-500 text-xs block">{fmt(item.total_amount)} ج مصنعية عليك</span>}</div>
                     )}
-                    {item._type === 'deal' && item.deal_type === 'give' && (
+                    {item._type === 'deal' && (item.deal_type === 'give' || item.deal_type === 'give_scrap') && (
                       <span className="text-emerald-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">ليك</span></span>
                     )}
                     {item._type === 'deal' && item.deal_type === 'give_local_bar' && (
@@ -508,7 +508,7 @@ export default function TraderAccount() {
                   {item._type === 'deal' && item.deal_type === 'work' && (
                     <span className="text-red-600">{fmtW(item.weight)} جم عليك{item.total_amount > 0 ? ` + ${fmt(item.total_amount)} ج` : ''}</span>
                   )}
-                  {item._type === 'deal' && item.deal_type === 'give' && (
+                  {item._type === 'deal' && (item.deal_type === 'give' || item.deal_type === 'give_scrap') && (
                     <span className="text-emerald-600">{fmtW(item.weight)} جم ليك</span>
                   )}
                   {item._type === 'deal' && item.deal_type === 'give_local_bar' && (

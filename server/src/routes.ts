@@ -185,7 +185,7 @@ router.post('/transactions/deal', auth, (req: AuthRequest, res: Response): void 
     total = bodyTotal || 0; // المصنعية
   } else if (type === 'give' || type === 'give_scrap') {
     price = 0;
-    total = 0; // لوجوهات / كسر - جرامات بس
+    total = 0; // كسر - جرامات بس
   } else if (type === 'give_local_bar') {
     price = 8;
     total = (original_weight || weight) * 8; // سبيكة بلدي - 8ج/جرام
@@ -196,7 +196,7 @@ router.post('/transactions/deal', auth, (req: AuthRequest, res: Response): void 
   ).run(trader_id, weight, price, total, original_karat || 21, original_weight || weight, type, notes || '', req.user!.id);
 
   const trader = db.prepare('SELECT name FROM traders WHERE id=?').get(trader_id) as any;
-  const labels: Record<string, string> = { buy: 'شراء دهب من', sell: 'بيع دهب لـ', work: 'استلام شغل من', give: 'إدي لوجوهات لـ', give_scrap: 'إدي كسر لـ', give_local_bar: 'إدي سبيكة بلدي لـ' };
+  const labels: Record<string, string> = { buy: 'شراء دهب من', sell: 'بيع دهب لـ', work: 'استلام شغل من', give: 'إدي كسر لـ', give_scrap: 'إدي كسر لـ', give_local_bar: 'إدي سبيكة بلدي لـ' };
   logAudit(req.user!.id, 'create', 'gold_deals', result.lastInsertRowid as number,
     `${labels[type] || type} ${trader?.name}: ${weight}جم${total ? ' - ' + total + ' ج' : ''}`);
 
