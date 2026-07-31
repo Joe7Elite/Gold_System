@@ -64,18 +64,27 @@ export default function Traders() {
   // When spike is selected, karat is forced to 24
   const effectiveKarat = Number(form.original_karat || 21);
 
-  // تحويل الوزن لعيار 21
-  const toWeight21 = (w: number, karat: number, isFineness: boolean) => {
-    if (isFineness) return (w * karat) / 875; // سبيكة بلدي: عيار مثل 750, 817
-    return karat !== 21 ? (w * karat) / 21 : w; // عيار عادي: 18, 21, 24
+  // عيار حساب التاجر (21 أو 18)
+  const baseKaratOf = (traderId: any) => {
+    const t = traders.find((x) => String(x.id) === String(traderId));
+    return Number(t?.base_karat) === 18 ? 18 : 21;
+  };
+
+  // عيار حساب التاجر المختار حالياً في المودال
+  const selectedBase = baseKaratOf(form.trader_id);
+
+  // تحويل الوزن لعيار حساب التاجر
+  const toBase = (w: number, karat: number, isFineness: boolean, base: number) => {
+    if (isFineness) return (w * karat) / ((base * 1000) / 24); // سبيكة بلدي: 21→875, 18→750
+    return karat !== base ? (w * karat) / base : w; // عيار عادي: 18, 21, 24
   };
 
   const dealTotal = () => {
     const karat = effectiveKarat;
     const w = Number(form.weight) || 0;
     const p = Number(form.price_per_gram) || 0;
-    const w21 = toWeight21(w, karat, false);
-    return { weight21: w21, total: w21 * p };
+    const wb = toBase(w, karat, false, selectedBase);
+    return { weight21: wb, total: wb * p };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,14 +93,18 @@ export default function Traders() {
     setSubmitting(true);
     try {
       if (modal === 'add-trader') {
-        const res = await api.post('/traders', { name: form.name, phone: form.phone, address: form.address, notes: form.notes });
+        const res = await api.post('/traders', {
+          name: form.name, phone: form.phone, address: form.address, notes: form.notes,
+          base_karat: Number(form.base_karat) === 18 ? 18 : 21,
+        });
         const newId = res.data.id;
-        // لو فيه رصيد افتتاحي (وزن أو فلوس) سجله
+        const newBase = Number(form.base_karat) === 18 ? 18 : 21;
+        // لو فيه رصيد افتتاحي (وزن أو فلوس) سجله - الوزن بعيار حساب التاجر
         if (form.init_weight && Number(form.init_weight) > 0) {
           const isGoldAgainstMe = form.init_weight_type === 'عليك';
           await api.post('/transactions/deal', {
             trader_id: newId, weight: Number(form.init_weight), price_per_gram: 0,
-            total_amount: 0, original_karat: 21, original_weight: Number(form.init_weight),
+            total_amount: 0, original_karat: newBase, original_weight: Number(form.init_weight),
             deal_type: isGoldAgainstMe ? 'work' : 'buy', notes: 'رصيد افتتاحي - دهب',
           });
         }
@@ -104,10 +117,11 @@ export default function Traders() {
       } else if (modal === 'deal') {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = toWeight21(origWeight, karat, false);
+        const base = baseKaratOf(form.trader_id);
+        const weightBase = toBase(origWeight, karat, false, base);
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
-          weight: weight21,
+          weight: weightBase,
           price_per_gram: Number(form.price_per_gram),
           original_karat: karat,
           original_weight: origWeight,
@@ -117,10 +131,11 @@ export default function Traders() {
       } else if (modal === 'work') {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = toWeight21(origWeight, karat, false);
+        const base = baseKaratOf(form.trader_id);
+        const weightBase = toBase(origWeight, karat, false, base);
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
-          weight: weight21,
+          weight: weightBase,
           price_per_gram: 0,
           total_amount: Number(form.craftsmanship) || 0,
           original_karat: karat,
@@ -139,10 +154,11 @@ export default function Traders() {
         const isLocalBar = giveType === 'give_local_bar';
         const karat = isLocalBar ? Number(form.fineness) : effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = toWeight21(origWeight, karat, isLocalBar);
+        const base = baseKaratOf(form.trader_id);
+        const weightBase = toBase(origWeight, karat, isLocalBar, base);
         await api.post('/transactions/deal', {
           trader_id: form.trader_id,
-          weight: weight21,
+          weight: weightBase,
           price_per_gram: 0,
           original_karat: karat,
           original_weight: origWeight,
@@ -152,18 +168,21 @@ export default function Traders() {
       } else if (modal === 'transfer') {
         const karat = effectiveKarat;
         const origWeight = Number(form.weight);
-        const weight21 = toWeight21(origWeight, karat, false);
         let toTraderId = form.to_trader_id;
         // لو التاجر مش موجود، أنشئه أول
         if (!toTraderId && form.to_trader_name?.trim()) {
-          const res = await api.post('/traders', { name: form.to_trader_name.trim() });
+          const res = await api.post('/traders', {
+            name: form.to_trader_name.trim(),
+            base_karat: Number(form.to_base_karat) === 18 ? 18 : 21,
+          });
           toTraderId = res.data.id;
         }
         if (!toTraderId) { setFormError('اختار أو اكتب اسم التاجر'); setSubmitting(false); return; }
+        // السيرفر بيحسب الوزن بعيار حساب كل تاجر لوحده
         await api.post('/transactions/transfer', {
           from_trader_id: form.from_trader_id,
           to_trader_id: toTraderId,
-          weight: weight21,
+          weight: origWeight,
           original_karat: karat,
           original_weight: origWeight,
           notes: form.notes || '',
@@ -229,6 +248,9 @@ export default function Traders() {
                   >
                     {t.name}
                   </Link>
+                  {Number(t.base_karat) === 18 && (
+                    <span className="ms-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">ع18</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-stone-500">{t.phone || '-'}</td>
                 <td className="px-4 py-3">
@@ -272,12 +294,17 @@ export default function Traders() {
             <div key={t.id} className="card p-4 mb-3">
               {/* Top: name + phone */}
               <div className="flex items-center justify-between mb-3">
-                <Link
-                  to={`/traders/${t.id}`}
-                  className="text-gold-700 hover:text-gold-600 font-semibold text-base"
-                >
-                  {t.name}
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to={`/traders/${t.id}`}
+                    className="text-gold-700 hover:text-gold-600 font-semibold text-base"
+                  >
+                    {t.name}
+                  </Link>
+                  {Number(t.base_karat) === 18 && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">ع18</span>
+                  )}
+                </div>
                 <span className="text-stone-400 text-sm">{t.phone || '-'}</span>
               </div>
 
@@ -373,13 +400,33 @@ export default function Traders() {
               rows={2}
             />
 
+            {/* عيار الحساب */}
+            <div className="border-t border-stone-100 pt-3 mt-2">
+              <p className="text-sm font-semibold text-stone-500 mb-2">عيار الحساب</p>
+              <div className="flex gap-2 bg-stone-100 rounded-xl p-1">
+                <button type="button"
+                  onClick={() => setForm({ ...form, base_karat: 21 })}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${Number(form.base_karat || 21) === 21 ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500'}`}>
+                  عيار 21
+                </button>
+                <button type="button"
+                  onClick={() => setForm({ ...form, base_karat: 18 })}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${Number(form.base_karat) === 18 ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500'}`}>
+                  عيار 18
+                </button>
+              </div>
+              <p className="text-xs text-stone-400 mt-1.5">
+                كل الأوزان في حساب التاجر ده هتتحول لعيار {Number(form.base_karat) === 18 ? '18' : '21'}
+              </p>
+            </div>
+
             {/* رصيد افتتاحي (اختياري) */}
             <div className="border-t border-stone-100 pt-3 mt-2">
               <p className="text-sm font-semibold text-stone-500 mb-3">رصيد افتتاحي (اختياري)</p>
               <div className="space-y-3">
                 <input
                   type="number" step="any" min="0"
-                  placeholder="رصيد الدهب (جرام عيار 21)"
+                  placeholder={`رصيد الدهب (جرام عيار ${Number(form.base_karat) === 18 ? '18' : '21'})`}
                   value={form.init_weight || ''}
                   onChange={(e) => setForm({ ...form, init_weight: e.target.value })}
                   className="input-field"
@@ -473,7 +520,7 @@ export default function Traders() {
               required
             >
               <option value="">اختار التاجر</option>
-              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>)}
             </select>
 
             <div className="grid grid-cols-2 gap-3">
@@ -511,8 +558,8 @@ export default function Traders() {
 
             {form.weight && form.price_per_gram && (
               <div className="card p-3 text-sm space-y-1">
-                {effectiveKarat !== 21 && (
-                  <div className="text-stone-600">الوزن بعيار 21: <span className="font-bold text-amber-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
+                {effectiveKarat !== selectedBase && (
+                  <div className="text-stone-600">الوزن بعيار {selectedBase}: <span className="font-bold text-amber-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
                 )}
                 <div className="text-stone-600">الإجمالي: <span className="font-bold text-amber-700 text-base">{fmt(Math.round(dealTotal().total))} جنيه</span></div>
                 <div className={`font-medium ${dealType === 'buy' ? 'text-red-600' : 'text-green-600'}`}>
@@ -550,7 +597,7 @@ export default function Traders() {
               required
             >
               <option value="">اختار التاجر</option>
-              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>)}
             </select>
 
             <div className="grid grid-cols-2 gap-3">
@@ -587,11 +634,11 @@ export default function Traders() {
 
             {form.weight && (
               <div className="card p-3 text-sm space-y-1">
-                {effectiveKarat !== 21 && (
-                  <div className="text-stone-600">الوزن بعيار 21: <span className="font-bold text-amber-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
+                {effectiveKarat !== selectedBase && (
+                  <div className="text-stone-600">الوزن بعيار {selectedBase}: <span className="font-bold text-amber-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
                 )}
                 <div className="text-amber-700 font-medium">
-                  هيتحسب {effectiveKarat !== 21 ? dealTotal().weight21.toFixed(3) : form.weight} جم عليك
+                  هيتحسب {effectiveKarat !== selectedBase ? dealTotal().weight21.toFixed(3) : form.weight} جم عليك
                 </div>
                 {form.craftsmanship && (
                   <div className="text-red-600 font-medium">+ مصنعية عليك: {fmt(Number(form.craftsmanship))} جنيه</div>
@@ -651,7 +698,7 @@ export default function Traders() {
               required
             >
               <option value="">اختار التاجر</option>
-              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>)}
             </select>
 
             <div className="grid grid-cols-2 gap-3">
@@ -677,29 +724,39 @@ export default function Traders() {
                   required
                 />
               ) : (
-                <select value="21" disabled className="input-field bg-stone-50 text-stone-400">
+                <select
+                  value={form.original_karat || '21'}
+                  onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
+                  className="input-field"
+                >
                   <option value="21">عيار 21</option>
+                  <option value="18">عيار 18</option>
+                  <option value="24">عيار 24 (سبايك)</option>
                 </select>
               )}
             </div>
 
-            {form.weight && (
-              <div className="card p-3 text-sm space-y-1">
-                {giveType === 'give_local_bar' && form.fineness && (
-                  <div className="text-stone-600">الوزن بعيار 21: <span className="font-bold text-amber-800">{((Number(form.weight) * Number(form.fineness)) / 875).toFixed(3)} جم</span></div>
-                )}
-                <div className="text-emerald-700 font-medium">
-                  {giveType === 'give_local_bar' && form.fineness
-                    ? ((Number(form.weight) * Number(form.fineness)) / 875).toFixed(3)
-                    : form.weight} جم <span className="font-bold">ليك</span>
-                </div>
-                {giveType === 'give_local_bar' && (
+            {form.weight && (() => {
+              const isBar = giveType === 'give_local_bar';
+              const k = isBar ? Number(form.fineness) : effectiveKarat;
+              const wb = toBase(Number(form.weight) || 0, k, isBar, selectedBase);
+              const changed = isBar ? !!form.fineness : k !== selectedBase;
+              return (
+                <div className="card p-3 text-sm space-y-1">
+                  {changed && (
+                    <div className="text-stone-600">الوزن بعيار {selectedBase}: <span className="font-bold text-amber-800">{wb.toFixed(3)} جم</span></div>
+                  )}
                   <div className="text-emerald-700 font-medium">
-                    + {fmt(Number(form.weight) * 8)} جنيه <span className="font-bold">ليك</span> (8ج × {form.weight} جرام)
+                    {changed ? wb.toFixed(3) : form.weight} جم <span className="font-bold">ليك</span>
                   </div>
-                )}
-              </div>
-            )}
+                  {isBar && (
+                    <div className="text-emerald-700 font-medium">
+                      + {fmt(Number(form.weight) * 8)} جنيه <span className="font-bold">ليك</span> (8ج × {form.weight} جرام)
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <textarea
               placeholder="ملاحظات"
@@ -809,7 +866,7 @@ export default function Traders() {
             >
               <option value="">من تاجر...</option>
               {traders.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>
               ))}
             </select>
             <div>
@@ -831,6 +888,26 @@ export default function Traders() {
                 ))}
               </datalist>
             </div>
+
+            {/* عيار حساب التاجر الجديد */}
+            {!form.to_trader_id && form.to_trader_name?.trim() && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-xs text-amber-800 mb-2">تاجر جديد - اختار عيار حسابه</p>
+                <div className="flex gap-2 bg-white rounded-lg p-1">
+                  <button type="button"
+                    onClick={() => setForm({ ...form, to_base_karat: 21 })}
+                    className={`flex-1 py-1.5 rounded-md text-sm font-semibold ${Number(form.to_base_karat || 21) === 21 ? 'bg-amber-100 text-amber-800' : 'text-stone-500'}`}>
+                    عيار 21
+                  </button>
+                  <button type="button"
+                    onClick={() => setForm({ ...form, to_base_karat: 18 })}
+                    className={`flex-1 py-1.5 rounded-md text-sm font-semibold ${Number(form.to_base_karat) === 18 ? 'bg-amber-100 text-amber-800' : 'text-stone-500'}`}>
+                    عيار 18
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <input
                 type="number"
@@ -852,18 +929,29 @@ export default function Traders() {
                 <option value="24">عيار 24 (سبايك)</option>
               </select>
             </div>
-            {form.weight && Number(form.original_karat || 21) !== 21 && (
-              <div className="card p-3 text-sm text-stone-600">
-                الوزن بعيار 21:{' '}
-                <span className="font-bold text-blue-700">
-                  {(
-                    (Number(form.weight) * Number(form.original_karat || 21)) /
-                    21
-                  ).toFixed(3)}{' '}
-                  جم
-                </span>
-              </div>
-            )}
+            {form.weight && (() => {
+              const k = Number(form.original_karat || 21);
+              const w = Number(form.weight) || 0;
+              const fBase = baseKaratOf(form.from_trader_id);
+              const tBase = form.to_trader_id
+                ? baseKaratOf(form.to_trader_id)
+                : (Number(form.to_base_karat) === 18 ? 18 : 21);
+              if (k === fBase && k === tBase) return null;
+              return (
+                <div className="card p-3 text-sm space-y-1">
+                  <div className="text-stone-600">
+                    يتخصم من التاجر الأول:{' '}
+                    <span className="font-bold text-red-600">{((w * k) / fBase).toFixed(3)} جم</span>
+                    <span className="text-xs text-stone-400"> (عيار {fBase})</span>
+                  </div>
+                  <div className="text-stone-600">
+                    يتضاف للتاجر التاني:{' '}
+                    <span className="font-bold text-emerald-700">{((w * k) / tBase).toFixed(3)} جم</span>
+                    <span className="text-xs text-stone-400"> (عيار {tBase})</span>
+                  </div>
+                </div>
+              );
+            })()}
             <textarea
               placeholder="ملاحظات"
               value={form.notes || ''}

@@ -48,6 +48,9 @@ export default function TraderAccount() {
   const fmt = (n: number) => n?.toLocaleString('ar-EG') ?? '0';
   const fmtW = (n: number) => n?.toLocaleString('ar-EG', { maximumFractionDigits: 2 }) ?? '0';
 
+  // عيار حساب التاجر (21 أو 18)
+  const baseK = Number(trader.base_karat) === 18 ? 18 : 21;
+
   // Build unified timeline
   const timeline = [
     ...deals.map((d: any) => ({ ...d, _type: 'deal', _date: d.created_at, _sort: new Date(d.created_at).getTime() })),
@@ -106,9 +109,9 @@ export default function TraderAccount() {
       if (editModal === 'deal') {
         const karat = Number(form.karat) || 21;
         const origWeight = Number(form.weight);
-        const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
+        const weightBase = karat !== baseK ? (origWeight * karat) / baseK : origWeight;
         await api.put(`/transactions/deal/${editItem.id}`, {
-          weight: weight21,
+          weight: weightBase,
           price_per_gram: Number(form.price_per_gram),
           original_karat: karat,
           original_weight: origWeight,
@@ -124,9 +127,9 @@ export default function TraderAccount() {
       } else if (editModal === 'transfer') {
         const karat = Number(form.karat) || 21;
         const origWeight = Number(form.weight);
-        const weight21 = karat !== 21 ? (origWeight * karat) / 21 : origWeight;
+        // السيرفر بيحسب وزن كل تاجر بعيار حسابه
         await api.put(`/transactions/transfer/${editItem.id}`, {
-          weight: weight21,
+          weight: origWeight,
           original_karat: karat,
           original_weight: origWeight,
           notes: form.notes || '',
@@ -167,8 +170,8 @@ export default function TraderAccount() {
     const karat = Number(form.karat) || 21;
     const w = Number(form.weight) || 0;
     const p = Number(form.price_per_gram) || 0;
-    const w21 = karat !== 21 ? (w * karat) / 21 : w;
-    return { weight21: w21, total: w21 * p };
+    const wb = karat !== baseK ? (w * karat) / baseK : w;
+    return { weight21: wb, total: wb * p };
   };
 
   // Badge resolver for timeline items
@@ -198,7 +201,12 @@ export default function TraderAccount() {
             التجار ←
           </Link>
         </div>
-        <h1 className="text-xl md:text-2xl font-bold text-stone-800">كشف حساب: {trader.name}</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-stone-800">
+          كشف حساب: {trader.name}
+          <span className="ms-2 align-middle inline-block text-xs font-semibold px-2 py-1 rounded-lg bg-amber-100 text-amber-800">
+            حساب عيار {Number(trader.base_karat) === 18 ? 18 : 21}
+          </span>
+        </h1>
         {trader.phone && (
           <p className="text-stone-400 text-sm mt-1">تليفون: {trader.phone}</p>
         )}
@@ -286,7 +294,7 @@ export default function TraderAccount() {
                     {item._type === 'deal' && (
                       <span>
                         {fmtW(item.weight)} جم × {fmt(item.price_per_gram)} ج
-                        {item.original_karat !== 21 && (
+                        {item.original_karat !== baseK && (
                           <span className="text-stone-400"> (أصل: {fmtW(item.original_weight)} جم عيار {item.original_karat})</span>
                         )}
                         {item.notes ? <span className="block text-xs text-stone-400">{item.notes}</span> : null}
@@ -303,7 +311,7 @@ export default function TraderAccount() {
                     )}
                     {item._type === 'transfer_in' && (
                       <span>
-                        استلام من {item.from_trader_name} - {fmtW(item.weight)} جم
+                        استلام من {item.from_trader_name} - {fmtW(item.to_weight ?? item.weight)} جم
                         {item.notes ? <span className="block text-xs text-stone-400">{item.notes}</span> : null}
                       </span>
                     )}
@@ -334,7 +342,7 @@ export default function TraderAccount() {
                       <span className="text-red-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">عليك</span></span>
                     )}
                     {item._type === 'transfer_in' && (
-                      <span className="text-emerald-600">{fmtW(item.weight)} جم <span className="text-xs font-normal">ليك</span></span>
+                      <span className="text-emerald-600">{fmtW(item.to_weight ?? item.weight)} جم <span className="text-xs font-normal">ليك</span></span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-stone-400">{item.created_by_name}</td>
@@ -393,7 +401,7 @@ export default function TraderAccount() {
                 {item._type === 'deal' && (
                   <span>
                     {fmtW(item.weight)} جم × {fmt(item.price_per_gram)} ج
-                    {item.original_karat !== 21 && (
+                    {item.original_karat !== baseK && (
                       <span className="text-stone-400"> (أصل: {fmtW(item.original_weight)} جم عيار {item.original_karat})</span>
                     )}
                     {item.notes ? <span className="block text-xs text-stone-400 mt-0.5">{item.notes}</span> : null}
@@ -410,7 +418,7 @@ export default function TraderAccount() {
                 )}
                 {item._type === 'transfer_in' && (
                   <span>
-                    استلام من {item.from_trader_name} - {fmtW(item.weight)} جم
+                    استلام من {item.from_trader_name} - {fmtW(item.to_weight ?? item.weight)} جم
                     {item.notes ? <span className="block text-xs text-stone-400 mt-0.5">{item.notes}</span> : null}
                   </span>
                 )}
@@ -444,7 +452,7 @@ export default function TraderAccount() {
                     <span className="text-red-600">{fmtW(item.weight)} جم عليك</span>
                   )}
                   {item._type === 'transfer_in' && (
-                    <span className="text-emerald-600">{fmtW(item.weight)} جم ليك</span>
+                    <span className="text-emerald-600">{fmtW(item.to_weight ?? item.weight)} جم ليك</span>
                   )}
                 </span>
                 <div className="flex gap-1">
@@ -545,8 +553,8 @@ export default function TraderAccount() {
             />
             {form.weight && form.price_per_gram && (
               <div className="bg-amber-50 p-3 rounded-xl text-sm space-y-1">
-                {Number(form.karat || 21) !== 21 && (
-                  <div>الوزن بعيار 21: <b>{dealTotal().weight21.toFixed(2)} جم</b></div>
+                {Number(form.karat || 21) !== baseK && (
+                  <div>الوزن بعيار {baseK}: <b>{dealTotal().weight21.toFixed(2)} جم</b></div>
                 )}
                 <div>الإجمالي: <b className="text-amber-700">{fmt(Math.round(dealTotal().total))} جنيه</b></div>
               </div>
@@ -667,10 +675,10 @@ export default function TraderAccount() {
                 <option value="14">عيار 14</option>
               </select>
             </div>
-            {form.weight && Number(form.karat || 21) !== 21 && (
+            {form.weight && Number(form.karat || 21) !== baseK && (
               <div className="bg-blue-50 p-3 rounded-xl text-sm">
-                الوزن بعيار 21:{' '}
-                <b>{((Number(form.weight) * Number(form.karat || 21)) / 21).toFixed(2)} جم</b>
+                الوزن بعيار {baseK}:{' '}
+                <b>{((Number(form.weight) * Number(form.karat || 21)) / baseK).toFixed(2)} جم</b>
               </div>
             )}
             <textarea

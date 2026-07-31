@@ -151,6 +151,8 @@ export async function initDb() {
   try { sqlDb.exec("ALTER TABLE gold_deals ADD COLUMN deal_type TEXT DEFAULT 'buy'"); saveDb(); } catch {}
   try { sqlDb.exec("ALTER TABLE cash_payments ADD COLUMN payment_type TEXT DEFAULT 'payment'"); saveDb(); } catch {}
   try { sqlDb.exec("ALTER TABLE users ADD COLUMN is_protected INTEGER DEFAULT 0"); saveDb(); } catch {}
+  try { sqlDb.exec("ALTER TABLE traders ADD COLUMN base_karat INTEGER DEFAULT 21"); saveDb(); } catch {}
+  try { sqlDb.exec("ALTER TABLE gold_transfers ADD COLUMN to_weight REAL"); saveDb(); } catch {}
 
   // Create default admin user if not exists
   const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');

@@ -32,6 +32,12 @@ function logAudit(userId: number, action: string, tableName: string, recordId: n
   ).run(userId, action, tableName, recordId, description, oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null);
 }
 
+// عيار حساب التاجر (21 أو 18) - كل الأوزان بتتحول للعيار ده
+function baseKaratOf(traderId: number | string): number {
+  const t = db.prepare('SELECT base_karat FROM traders WHERE id=?').get(traderId) as any;
+  return Number(t?.base_karat) === 18 ? 18 : 21;
+}
+
 // ==================== AUTH ====================
 router.post('/auth/login', (req: Request, res: Response): void => {
   const { username, password } = req.body;
@@ -58,7 +64,7 @@ router.get('/traders', auth, (_req: AuthRequest, res: Response): void => {
       COALESCE((SELECT SUM(CASE WHEN cp.payment_type='loan' THEN -cp.amount ELSE cp.amount END) FROM cash_payments cp WHERE cp.trader_id = t.id), 0) as payments_net,
       COALESCE((SELECT SUM(CASE WHEN gd.deal_type IN ('sell','work') THEN -gd.weight ELSE gd.weight END) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as gold_deals_net,
       COALESCE((SELECT SUM(gt.weight) FROM gold_transfers gt WHERE gt.from_trader_id = t.id), 0) as gold_out,
-      COALESCE((SELECT SUM(gt.weight) FROM gold_transfers gt WHERE gt.to_trader_id = t.id), 0) as gold_in
+      COALESCE((SELECT SUM(COALESCE(gt.to_weight, gt.weight)) FROM gold_transfers gt WHERE gt.to_trader_id = t.id), 0) as gold_in
     FROM traders t WHERE t.is_active = 1 ORDER BY t.name
   `).all() as any[];
 
@@ -77,21 +83,23 @@ router.get('/traders/:id', auth, (req: AuthRequest, res: Response): void => {
 });
 
 router.post('/traders', auth, (req: AuthRequest, res: Response): void => {
-  const { name, phone, address, notes } = req.body;
+  const { name, phone, address, notes, base_karat } = req.body;
   if (!name) { res.status(400).json({ error: 'اسم التاجر مطلوب' }); return; }
+  const bk = Number(base_karat) === 18 ? 18 : 21;
   const result = db.prepare(
-    'INSERT INTO traders (name, phone, address, notes, created_by) VALUES (?, ?, ?, ?, ?)'
-  ).run(name, phone || '', address || '', notes || '', req.user!.id);
-  logAudit(req.user!.id, 'create', 'traders', result.lastInsertRowid as number, `إضافة تاجر: ${name}`);
-  res.json({ id: result.lastInsertRowid, message: 'تم إضافة التاجر' });
+    'INSERT INTO traders (name, phone, address, notes, base_karat, created_by) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(name, phone || '', address || '', notes || '', bk, req.user!.id);
+  logAudit(req.user!.id, 'create', 'traders', result.lastInsertRowid as number, `إضافة تاجر: ${name} (عيار ${bk})`);
+  res.json({ id: result.lastInsertRowid, base_karat: bk, message: 'تم إضافة التاجر' });
 });
 
 router.put('/traders/:id', auth, (req: AuthRequest, res: Response): void => {
   const old = db.prepare('SELECT * FROM traders WHERE id = ?').get(req.params.id) as any;
   if (!old) { res.status(404).json({ error: 'التاجر مش موجود' }); return; }
-  const { name, phone, address, notes } = req.body;
-  db.prepare('UPDATE traders SET name=?, phone=?, address=?, notes=? WHERE id=?')
-    .run(name || old.name, phone ?? old.phone, address ?? old.address, notes ?? old.notes, req.params.id);
+  const { name, phone, address, notes, base_karat } = req.body;
+  const bk = base_karat == null ? (old.base_karat || 21) : (Number(base_karat) === 18 ? 18 : 21);
+  db.prepare('UPDATE traders SET name=?, phone=?, address=?, notes=?, base_karat=? WHERE id=?')
+    .run(name || old.name, phone ?? old.phone, address ?? old.address, notes ?? old.notes, bk, req.params.id);
   logAudit(req.user!.id, 'update', 'traders', +req.params.id, `تعديل تاجر: ${old.name}`, old, req.body);
   res.json({ message: 'تم التعديل' });
 });
@@ -128,7 +136,7 @@ router.get('/traders/:id/statement', auth, (req: AuthRequest, res: Response): vo
   const paymentsNet = payments.reduce((s, p) => s + (p.payment_type === 'loan' ? -p.amount : p.amount), 0);
   const goldDealsNet = deals.reduce((s, d) => s + (['sell','work'].includes(d.deal_type) ? -d.weight : d.weight), 0);
   const totalGoldOut = transfersOut.reduce((s, t) => s + t.weight, 0);
-  const totalGoldIn = transfersIn.reduce((s, t) => s + t.weight, 0);
+  const totalGoldIn = transfersIn.reduce((s, t) => s + (t.to_weight ?? t.weight), 0);
 
   res.json({
     trader, deals, payments, transfers_out: transfersOut, transfers_in: transfersIn,
@@ -234,16 +242,24 @@ router.post('/transactions/transfer', auth, (req: AuthRequest, res: Response): v
   if (!from_trader_id || !to_trader_id || !weight) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
   if (from_trader_id === to_trader_id) { res.status(400).json({ error: 'مينفعش تحول من تاجر لنفسه' }); return; }
 
+  // الوزن بيتحسب بعيار حساب كل تاجر لوحده
+  const ok = Number(original_karat) || 21;
+  const ow = Number(original_weight) || Number(weight);
+  const fromBase = baseKaratOf(from_trader_id);
+  const toBase = baseKaratOf(to_trader_id);
+  const fromW = (ow * ok) / fromBase;
+  const toW = (ow * ok) / toBase;
+
   const result = db.prepare(
-    'INSERT INTO gold_transfers (from_trader_id, to_trader_id, weight, original_karat, original_weight, notes, created_by) VALUES (?,?,?,?,?,?,?)'
-  ).run(from_trader_id, to_trader_id, weight, original_karat || 21, original_weight || weight, notes || '', req.user!.id);
+    'INSERT INTO gold_transfers (from_trader_id, to_trader_id, weight, to_weight, original_karat, original_weight, notes, created_by) VALUES (?,?,?,?,?,?,?,?)'
+  ).run(from_trader_id, to_trader_id, fromW, toW, ok, ow, notes || '', req.user!.id);
 
   const from = db.prepare('SELECT name FROM traders WHERE id=?').get(from_trader_id) as any;
   const to = db.prepare('SELECT name FROM traders WHERE id=?').get(to_trader_id) as any;
   logAudit(req.user!.id, 'create', 'gold_transfers', result.lastInsertRowid as number,
-    `تحويل ${weight}جم من ${from?.name} لـ ${to?.name}`);
+    `تحويل ${ow}جم عيار ${ok} من ${from?.name} (${fromW.toFixed(2)}جم/${fromBase}) لـ ${to?.name} (${toW.toFixed(2)}جم/${toBase})`);
 
-  res.json({ id: result.lastInsertRowid, message: 'تم التحويل' });
+  res.json({ id: result.lastInsertRowid, weight: fromW, to_weight: toW, message: 'تم التحويل' });
 });
 
 // تعديل تحويل
@@ -251,10 +267,18 @@ router.put('/transactions/transfer/:id', auth, (req: AuthRequest, res: Response)
   const old = db.prepare('SELECT * FROM gold_transfers WHERE id=?').get(req.params.id) as any;
   if (!old) { res.status(404).json({ error: 'العملية مش موجودة' }); return; }
 
-  const { from_trader_id, to_trader_id, weight, original_karat, original_weight, notes } = req.body;
-  db.prepare('UPDATE gold_transfers SET from_trader_id=?, to_trader_id=?, weight=?, original_karat=?, original_weight=?, notes=? WHERE id=?')
-    .run(from_trader_id || old.from_trader_id, to_trader_id || old.to_trader_id, weight || old.weight,
-      original_karat || old.original_karat, original_weight || old.original_weight, notes ?? old.notes, req.params.id);
+  const { from_trader_id, to_trader_id, original_karat, original_weight, notes } = req.body;
+  const fromId = from_trader_id || old.from_trader_id;
+  const toId = to_trader_id || old.to_trader_id;
+  const ok = Number(original_karat) || old.original_karat || 21;
+  const ow = Number(original_weight) || old.original_weight || old.weight;
+  const fromBase = baseKaratOf(fromId);
+  const toBase = baseKaratOf(toId);
+  const fromW = (ow * ok) / fromBase;
+  const toW = (ow * ok) / toBase;
+
+  db.prepare('UPDATE gold_transfers SET from_trader_id=?, to_trader_id=?, weight=?, to_weight=?, original_karat=?, original_weight=?, notes=? WHERE id=?')
+    .run(fromId, toId, fromW, toW, ok, ow, notes ?? old.notes, req.params.id);
 
   logAudit(req.user!.id, 'update', 'gold_transfers', +req.params.id, 'تعديل تحويل', old, req.body);
   res.json({ message: 'تم التعديل' });
