@@ -1,4 +1,4 @@
-const CACHE_NAME = 'almostafa-gold-v1';
+const CACHE_NAME = 'almostafa-gold-v3';
 const STATIC_ASSETS = [
   '/',
   '/logo.png',
