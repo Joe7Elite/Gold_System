@@ -5,17 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/ui/Modal';
 import { PageLoader } from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
-import TraderOps, { OpKind, FormError } from '../components/TraderOps';
+import { FormError } from '../components/TraderOps';
 
 export default function Traders() {
   const { user } = useAuth();
   const [traders, setTraders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-
-  const [modal, setModal] = useState<OpKind>('none');
-  const [initial, setInitial] = useState<any>({});
-  const [opId, setOpId] = useState(0);
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<any>({});
@@ -32,12 +28,6 @@ export default function Traders() {
   const normal = traders.filter((t) => !t.is_pinned);
   const filtered = normal.filter((t) => t.name.includes(search) || t.phone?.includes(search));
 
-  const open = (kind: OpKind, extra: any = {}) => {
-    setInitial(extra);
-    setOpId((n) => n + 1);
-    setModal(kind);
-  };
-
   const deleteTrader = async (t: any) => {
     if (!window.confirm(`متأكد إنك عايز تحذف ${t.name}؟`)) return;
     try {
@@ -53,17 +43,16 @@ export default function Traders() {
     setFormError('');
     setSubmitting(true);
     try {
-      const newBase = Number(form.base_karat) === 18 ? 18 : 21;
       const res = await api.post('/traders', {
         name: form.name, phone: form.phone, address: form.address, notes: form.notes,
-        base_karat: newBase,
+        base_karat: 21,
       });
       const newId = res.data.id;
       if (form.init_weight && Number(form.init_weight) > 0) {
         const isGoldAgainstMe = form.init_weight_type === 'عليك';
         await api.post('/transactions/deal', {
           trader_id: newId, weight: Number(form.init_weight), price_per_gram: 0,
-          total_amount: 0, original_karat: newBase, original_weight: Number(form.init_weight),
+          total_amount: 0, original_karat: 21, original_weight: Number(form.init_weight),
           deal_type: isGoldAgainstMe ? 'work' : 'buy', notes: 'رصيد افتتاحي - دهب',
         });
       }
@@ -101,7 +90,7 @@ export default function Traders() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="pb-4">
+    <div className="pb-4 max-w-3xl">
       {/* ===== Header ===== */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div>
@@ -148,93 +137,49 @@ export default function Traders() {
       {filtered.length === 0 ? (
         <EmptyState icon="👥" title="مفيش تجار" sub="أضف أول تاجر من زر (+ تاجر جديد)" />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-2">
           {filtered.map((t) => {
-            const base = Number(t.base_karat) === 18 ? 18 : 21;
             const g = goldView(t.gold_balance);
             const m = moneyView(t.money_balance);
             return (
-              <div key={t.id} className="card p-0 overflow-hidden hover:shadow-card transition-shadow">
-                {/* Card header */}
-                <div className="px-3.5 py-3 flex items-center justify-between gap-2 border-b border-stone-100 bg-stone-50/70">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold-100 to-gold-300 text-gold-900 flex items-center justify-center font-extrabold shrink-0">
+              <div key={t.id} className="card overflow-hidden hover:shadow-card transition-shadow">
+                <div className="flex items-stretch">
+                  <Link to={`/traders/${t.id}`} className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-100 to-gold-300 text-gold-900 flex items-center justify-center font-extrabold shrink-0">
                       {(t.name || '?').trim().charAt(0)}
                     </div>
-                    <div className="min-w-0">
-                      <Link to={`/traders/${t.id}`} className="block font-bold text-stone-800 truncate hover:text-gold-700">
-                        {t.name}
-                      </Link>
-                      <p className="text-[11px] text-stone-400 truncate">{t.phone || '—'}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-stone-800 truncate">{t.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-[13px] font-bold">
+                        <span className={g.cls}>
+                          {g.amount} جم <span className="text-[11px] font-semibold">{g.tag}</span>
+                        </span>
+                        <span className="text-stone-200">•</span>
+                        <span className={m.cls}>
+                          {m.amount} ج <span className="text-[11px] font-semibold">{m.tag}</span>
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`text-[10px] font-bold px-1.5 py-1 rounded ${base === 18 ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
-                      ع{base}
-                    </span>
-                    {(user as any)?.is_protected && (
-                      <button
-                        onClick={() => deleteTrader(t)}
-                        title="حذف التاجر"
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card body */}
-                <div className="p-3 space-y-2.5">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl bg-stone-50 border border-stone-100 px-3 py-2">
-                      <p className="text-[11px] text-stone-400 mb-0.5">الدهب</p>
-                      <p className={`font-extrabold text-[15px] leading-tight ${g.cls}`}>
-                        {g.amount} <span className="text-[11px] font-semibold">جم</span>
-                      </p>
-                      <p className={`text-[11px] font-bold ${g.cls}`}>{g.tag}</p>
-                    </div>
-                    <div className="rounded-xl bg-stone-50 border border-stone-100 px-3 py-2">
-                      <p className="text-[11px] text-stone-400 mb-0.5">الفلوس</p>
-                      <p className={`font-extrabold text-[15px] leading-tight ${m.cls}`}>
-                        {m.amount} <span className="text-[11px] font-semibold">ج</span>
-                      </p>
-                      <p className={`text-[11px] font-bold ${m.cls}`}>{m.tag}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <ActionBtn tone="amber" label="قطع" onClick={() => open('deal', { trader_id: t.id, _locked: true })} />
-                    <ActionBtn tone="red" label="شغل" onClick={() => open('work', { trader_id: t.id, _locked: true })} />
-                    <ActionBtn tone="emerald" label="إدي" onClick={() => open('give', { trader_id: t.id, _locked: true })} />
-                    <ActionBtn tone="green" label="فلوس" onClick={() => open('payment', { trader_id: t.id, _locked: true })} />
-                    <ActionBtn tone="blue" label="تحويل" onClick={() => open('transfer', { from_trader_id: t.id, _lockedFrom: true })} />
-                    <Link
-                      to={`/traders/${t.id}`}
-                      className="text-center text-xs font-bold py-2 rounded-lg bg-stone-800 text-white hover:bg-stone-700 transition-colors"
+                    <svg className="w-4 h-4 text-stone-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </Link>
+                  {(user as any)?.is_protected && (
+                    <button
+                      onClick={() => deleteTrader(t)}
+                      title="حذف التاجر"
+                      className="px-3 flex items-center justify-center text-red-500 hover:bg-red-50 border-s border-stone-100 transition-colors"
                     >
-                      كشف
-                    </Link>
-                  </div>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
-      )}
-
-      {/* ===== العمليات ===== */}
-      {modal !== 'none' && (
-        <TraderOps
-          key={opId}
-          kind={modal}
-          initial={initial}
-          traders={traders}
-          onClose={() => setModal('none')}
-          onDone={load}
-        />
       )}
 
       {/* ===== إضافة تاجر ===== */}
@@ -269,33 +214,13 @@ export default function Traders() {
               rows={2}
             />
 
-            {/* عيار الحساب */}
-            <div className="border-t border-stone-100 pt-3 mt-2">
-              <p className="text-sm font-semibold text-stone-500 mb-2">عيار الحساب</p>
-              <div className="flex gap-2 bg-stone-100 rounded-xl p-1">
-                <button type="button"
-                  onClick={() => setForm({ ...form, base_karat: 21 })}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${Number(form.base_karat || 21) === 21 ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500'}`}>
-                  عيار 21
-                </button>
-                <button type="button"
-                  onClick={() => setForm({ ...form, base_karat: 18 })}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${Number(form.base_karat) === 18 ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500'}`}>
-                  عيار 18
-                </button>
-              </div>
-              <p className="text-xs text-stone-400 mt-1.5">
-                كل الأوزان في حساب التاجر ده هتتحول لعيار {Number(form.base_karat) === 18 ? '18' : '21'}
-              </p>
-            </div>
-
             {/* رصيد افتتاحي (اختياري) */}
             <div className="border-t border-stone-100 pt-3 mt-2">
               <p className="text-sm font-semibold text-stone-500 mb-3">رصيد افتتاحي (اختياري)</p>
               <div className="space-y-3">
                 <input
                   type="number" step="any" min="0"
-                  placeholder={`رصيد الدهب (جرام عيار ${Number(form.base_karat) === 18 ? '18' : '21'})`}
+                  placeholder="رصيد الدهب (جرام عيار 21)"
                   value={form.init_weight || ''}
                   onChange={(e) => setForm({ ...form, init_weight: e.target.value })}
                   className="input-field"
@@ -356,27 +281,5 @@ export default function Traders() {
         </Modal>
       )}
     </div>
-  );
-}
-
-/* ===================== Action Button ===================== */
-
-const TONES: Record<string, string> = {
-  amber: 'bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-100',
-  red: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-100',
-  emerald: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-100',
-  green: 'bg-teal-50 text-teal-700 hover:bg-teal-100 border-teal-100',
-  blue: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100',
-  stone: 'bg-stone-100 text-stone-700 hover:bg-stone-200 border-stone-200',
-};
-
-function ActionBtn({ label, onClick, tone = 'stone' }: { label: string; onClick: () => void; tone?: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`text-xs font-bold py-2 rounded-lg border transition-colors ${TONES[tone] || TONES.stone}`}
-    >
-      {label}
-    </button>
   );
 }

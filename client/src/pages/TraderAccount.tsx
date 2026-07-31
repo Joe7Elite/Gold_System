@@ -6,6 +6,7 @@ import Badge from '../components/ui/Badge';
 import StatCard from '../components/ui/StatCard';
 import { PageLoader } from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
+import TraderOps, { OpKind, GiveType } from '../components/TraderOps';
 
 type EditModal = 'none' | 'deal' | 'payment' | 'transfer';
 
@@ -14,6 +15,12 @@ export default function TraderAccount() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'all' | 'deals' | 'payments' | 'transfers'>('all');
+
+  // شريط العمليات
+  const [opModal, setOpModal] = useState<OpKind>('none');
+  const [opInitial, setOpInitial] = useState<any>({});
+  const [opGiveType, setOpGiveType] = useState<GiveType>('give');
+  const [opId, setOpId] = useState(0);
 
   // Edit modal state
   const [editModal, setEditModal] = useState<EditModal>('none');
@@ -30,6 +37,18 @@ export default function TraderAccount() {
     api.get(`/traders/${id}/statement`)
       .then((r) => setData(r.data))
       .finally(() => setLoading(false));
+  };
+
+  const refresh = () => {
+    api.get(`/traders/${id}/statement`).then((r) => setData(r.data));
+    api.get('/traders').then((r) => setTraders(r.data));
+  };
+
+  const openOp = (kind: OpKind, extra: any = {}, gt?: GiveType) => {
+    if (gt) setOpGiveType(gt);
+    setOpInitial(extra);
+    setOpId((n) => n + 1);
+    setOpModal(kind);
   };
 
   useEffect(() => {
@@ -194,19 +213,24 @@ export default function TraderAccount() {
   };
 
   return (
-    <div>
+    <div className="pb-4">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-5">
         <div className="flex items-center gap-2 mb-1">
-          <Link to="/traders" className="text-stone-400 hover:text-stone-600 text-sm transition-colors">
-            التجار ←
+          <Link
+            to={trader.is_pinned ? '/saber' : '/traders'}
+            className="text-stone-400 hover:text-stone-600 text-sm transition-colors"
+          >
+            {trader.is_pinned ? 'صابر فوده ←' : 'التجار ←'}
           </Link>
         </div>
         <h1 className="text-xl md:text-2xl font-bold text-stone-800">
-          كشف حساب: {trader.name}
-          <span className="ms-2 align-middle inline-block text-xs font-semibold px-2 py-1 rounded-lg bg-amber-100 text-amber-800">
-            حساب عيار {Number(trader.base_karat) === 18 ? 18 : 21}
-          </span>
+          {trader.name}
+          {baseK === 18 && (
+            <span className="ms-2 align-middle inline-block text-xs font-semibold px-2 py-1 rounded-lg bg-amber-100 text-amber-800">
+              عيار 18
+            </span>
+          )}
         </h1>
         {trader.phone && (
           <p className="text-stone-400 text-sm mt-1">تليفون: {trader.phone}</p>
@@ -239,6 +263,51 @@ export default function TraderAccount() {
             </svg>
           }
         />
+      </div>
+
+      {/* ===== شريط العمليات ===== */}
+      <div className="card p-3 mb-5">
+        <p className="text-xs font-semibold text-stone-400 mb-2 px-1">عمليات جديدة</p>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          {!trader.is_pinned && (
+            <OpBtn
+              label="قطع"
+              primary
+              onClick={() => openOp('deal', { trader_id: trader.id, _locked: true, original_karat: String(baseK) })}
+            />
+          )}
+          <OpBtn
+            label="استلام شغل"
+            primary={trader.is_pinned}
+            onClick={() => openOp('work', { trader_id: trader.id, _locked: true, original_karat: String(baseK) })}
+          />
+          <OpBtn
+            label="إدي"
+            onClick={() =>
+              openOp(
+                'give',
+                { trader_id: trader.id, _locked: true, original_karat: String(baseK) },
+                trader.is_pinned ? 'give_scrap' : 'give'
+              )
+            }
+          />
+          <OpBtn
+            label="فلوس"
+            onClick={() => openOp('payment', { trader_id: trader.id, _locked: true })}
+          />
+          {!trader.is_pinned && (
+            <OpBtn
+              label="تحويل"
+              onClick={() =>
+                openOp('transfer', {
+                  from_trader_id: trader.id,
+                  _lockedFrom: true,
+                  original_karat: String(baseK),
+                })
+              }
+            />
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -486,6 +555,20 @@ export default function TraderAccount() {
         )}
       </div>
 
+      {/* ===== NEW OPERATION MODAL ===== */}
+      {opModal !== 'none' && (
+        <TraderOps
+          key={opId}
+          kind={opModal}
+          initial={opInitial}
+          traders={traders}
+          giveType={opGiveType}
+          giveOptions={trader.is_pinned ? ['give_scrap', 'give_local_bar'] : undefined}
+          onClose={() => setOpModal('none')}
+          onDone={refresh}
+        />
+      )}
+
       {/* ===== EDIT MODALS ===== */}
 
       {/* Edit Deal */}
@@ -701,5 +784,20 @@ export default function TraderAccount() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function OpBtn({ label, onClick, primary }: { label: string; onClick: () => void; primary?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+        primary
+          ? 'bg-amber-600 text-white hover:bg-amber-700'
+          : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+      }`}
+    >
+      {label}
+    </button>
   );
 }

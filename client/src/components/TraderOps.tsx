@@ -28,12 +28,13 @@ interface Props {
   dealType?: DealType;
   paymentType?: PaymentType;
   giveType?: GiveType;
+  giveOptions?: GiveType[];
   onClose: () => void;
   onDone: () => void;
 }
 
 export default function TraderOps({
-  kind, initial, traders, dealType: dt0, paymentType: pt0, giveType: gt0, onClose, onDone,
+  kind, initial, traders, dealType: dt0, paymentType: pt0, giveType: gt0, giveOptions, onClose, onDone,
 }: Props) {
   const [form, setForm] = useState<any>(initial || {});
   const [formError, setFormError] = useState('');
@@ -66,15 +67,13 @@ export default function TraderOps({
   };
 
   // ينشئ التاجر لو مكتوب اسم جديد
-  const resolveTrader = async (idField: string, nameField: string, karatField: string) => {
+  const resolveTrader = async (idField: string, nameField: string) => {
     if (form[idField]) return form[idField];
     const name = form[nameField]?.trim();
     if (!name) return null;
     const exists = traders.find((t) => t.name === name);
     if (exists) return exists.id;
-    const res = await api.post('/traders', {
-      name, base_karat: Number(form[karatField]) === 18 ? 18 : 21,
-    });
+    const res = await api.post('/traders', { name, base_karat: 21 });
     return res.data.id;
   };
 
@@ -118,8 +117,8 @@ export default function TraderOps({
           notes: form.notes || '',
         });
       } else if (kind === 'transfer') {
-        const fromId = await resolveTrader('from_trader_id', 'from_trader_name', 'from_base_karat');
-        const toId = await resolveTrader('to_trader_id', 'to_trader_name', 'to_base_karat');
+        const fromId = await resolveTrader('from_trader_id', 'from_trader_name');
+        const toId = await resolveTrader('to_trader_id', 'to_trader_name');
         if (!fromId || !toId) { setFormError('اختار أو اكتب اسم التاجر'); setSubmitting(false); return; }
         if (String(fromId) === String(toId)) { setFormError('مينفعش تحول لنفس التاجر'); setSubmitting(false); return; }
         const origWeight = Number(form.weight);
@@ -166,7 +165,7 @@ export default function TraderOps({
   );
 
   const nameInput = (
-    idField: string, nameField: string, karatField: string, placeholder: string, listId: string, excludeId?: any
+    idField: string, nameField: string, placeholder: string, listId: string, excludeId?: any
   ) => (
     <div>
       <input
@@ -187,20 +186,7 @@ export default function TraderOps({
         ))}
       </datalist>
       {!form[idField] && form[nameField]?.trim() && (
-        <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <p className="text-xs text-amber-800 mb-2">تاجر جديد — اختار عيار حسابه</p>
-          <div className="flex gap-2 bg-white rounded-lg p-1">
-            {[21, 18].map((k) => (
-              <button key={k} type="button"
-                onClick={() => setForm({ ...form, [karatField]: k })}
-                className={`flex-1 py-1.5 rounded-md text-sm font-semibold ${
-                  Number(form[karatField] || 21) === k ? 'bg-amber-100 text-amber-800' : 'text-stone-500'
-                }`}>
-                عيار {k}
-              </button>
-            ))}
-          </div>
-        </div>
+        <p className="mt-1.5 text-xs text-amber-700">تاجر جديد — هيتعمل حساب جديد باسمه</p>
       )}
     </div>
   );
@@ -218,10 +204,10 @@ export default function TraderOps({
           <div className="space-y-3">
             {form._lockedFrom
               ? <LockedTrader label="من" trader={traderById(form.from_trader_id)} />
-              : nameInput('from_trader_id', 'from_trader_name', 'from_base_karat', 'من تاجر... (اختار أو اكتب اسم جديد)', 'from-list', form.to_trader_id)}
+              : nameInput('from_trader_id', 'from_trader_name', 'من تاجر... (اختار أو اكتب اسم جديد)', 'from-list', form.to_trader_id)}
             {form._lockedTo
               ? <LockedTrader label="لـ" trader={traderById(form.to_trader_id)} />
-              : nameInput('to_trader_id', 'to_trader_name', 'to_base_karat', 'لـ تاجر... (اختار أو اكتب اسم جديد)', 'to-list', form.from_trader_id)}
+              : nameInput('to_trader_id', 'to_trader_name', 'لـ تاجر... (اختار أو اكتب اسم جديد)', 'to-list', form.from_trader_id)}
           </div>
         )}
 
@@ -244,7 +230,7 @@ export default function TraderOps({
             label="النوع"
             value={giveType}
             onChange={(v) => setGiveType(v as GiveType)}
-            options={(['give', 'give_scrap', 'give_local_bar'] as GiveType[]).map((v) => ({
+            options={(giveOptions || (['give', 'give_scrap', 'give_local_bar'] as GiveType[])).map((v) => ({
               value: v, label: GIVE_LABELS[v],
             }))}
           />
@@ -473,9 +459,11 @@ function LockedTrader({ trader, label = 'التاجر' }: { trader: any; label?:
         <p className="text-[11px] text-stone-400 leading-none mb-0.5">{label}</p>
         <p className="font-bold text-stone-800 text-sm truncate">{trader?.name || '—'}</p>
       </div>
-      <span className="text-[10px] font-bold px-1.5 py-1 rounded shrink-0 bg-stone-200 text-stone-600">
-        حساب ع{base}
-      </span>
+      {base === 18 && (
+        <span className="text-[10px] font-bold px-1.5 py-1 rounded shrink-0 bg-amber-100 text-amber-800">
+          حساب ع18
+        </span>
+      )}
     </div>
   );
 }
