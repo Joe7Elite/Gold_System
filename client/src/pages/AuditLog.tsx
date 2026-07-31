@@ -20,11 +20,11 @@ export default function AuditLog() {
 
   const handleReset = async () => {
     if (!window.confirm('متأكد إنك عايز تمسح كل البيانات؟\nالعملية دي مش هترجع!')) return;
-    if (!window.confirm('تأكيد أخير: كل التجار والعمليات والأرصدة هتتمسح نهائياً. متأكد؟')) return;
+    if (!window.confirm('تأكيد أخير: كل التجار والعمليات هتتمسح.\nحسابات صابر فوده هتتصفر بس ومتتمسحش. متأكد؟')) return;
     setResetting(true);
     try {
       await api.delete('/reset-all');
-      alert('تم مسح كل البيانات بنجاح');
+      alert('تم مسح كل البيانات');
       load();
     } catch (err: any) {
       alert(err.response?.data?.error || 'حصل مشكلة');
@@ -36,67 +36,43 @@ export default function AuditLog() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl md:text-2xl font-bold text-stone-800">سجل التعديلات</h1>
+    <div className="max-w-3xl pb-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h1 className="text-xl font-bold text-stone-800">السجل</h1>
+          <p className="text-xs text-stone-400 mt-0.5">{logs.length} عملية</p>
+        </div>
         {(user as any)?.is_protected && (
           <button
             onClick={handleReset}
             disabled={resetting}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-all disabled:opacity-50"
+            className="px-3 py-2 bg-red-600 active:bg-red-700 text-white text-xs font-bold rounded-xl disabled:opacity-50 shrink-0"
           >
             {resetting ? 'جاري المسح...' : 'مسح كل البيانات'}
           </button>
         )}
       </div>
 
-      {/* Desktop */}
-      <div className="hidden md:block card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-stone-50/80">
-              <th className="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase tracking-wide">المستخدم</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase tracking-wide">العملية</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase tracking-wide">الوصف</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-stone-500 uppercase tracking-wide">التاريخ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id} className="border-t border-stone-100 hover:bg-gold-50/30 transition-colors">
-                <td className="px-5 py-3 font-semibold text-stone-700">{log.user_name}</td>
-                <td className="px-5 py-3">
-                  <Badge
-                    label={log.action === 'create' ? 'إضافة' : log.action === 'update' ? 'تعديل' : 'حذف'}
-                    color={log.action === 'create' ? 'green' : log.action === 'update' ? 'blue' : 'red'}
-                  />
-                </td>
-                <td className="px-5 py-3 text-stone-600">{log.description}</td>
-                <td className="px-5 py-3 text-stone-400 text-xs">{log.created_at}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {logs.length === 0 && <EmptyState icon="📋" title="لا توجد تعديلات" />}
-      </div>
-
-      {/* Mobile */}
-      <div className="md:hidden space-y-2">
-        {logs.map((log) => (
-          <div key={log.id} className="card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-semibold text-stone-700 text-sm">{log.user_name}</span>
-              <Badge
-                label={log.action === 'create' ? 'إضافة' : log.action === 'update' ? 'تعديل' : 'حذف'}
-                color={log.action === 'create' ? 'green' : log.action === 'update' ? 'blue' : 'red'}
-              />
+      {logs.length === 0 ? (
+        <EmptyState icon="📋" title="مفيش عمليات" />
+      ) : (
+        <div className="space-y-1.5">
+          {logs.map((log) => (
+            <div key={log.id} className="card px-4 py-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-stone-700 text-sm min-w-0 flex-1">{log.description}</p>
+                <Badge
+                  label={log.action === 'create' ? 'إضافة' : log.action === 'update' ? 'تعديل' : 'حذف'}
+                  color={log.action === 'create' ? 'green' : log.action === 'update' ? 'blue' : 'red'}
+                />
+              </div>
+              <p className="text-[11px] text-stone-400 mt-1">
+                {log.user_name} <span className="mx-1 text-stone-200">•</span> {log.created_at}
+              </p>
             </div>
-            <p className="text-stone-600 text-sm">{log.description}</p>
-            <p className="text-stone-400 text-xs mt-1">{log.created_at}</p>
-          </div>
-        ))}
-        {logs.length === 0 && <EmptyState icon="📋" title="لا توجد تعديلات" />}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

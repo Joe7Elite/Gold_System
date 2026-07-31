@@ -3,7 +3,6 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import StatCard from '../components/ui/StatCard';
 import { PageLoader } from '../components/ui/Spinner';
-import EmptyState from '../components/ui/EmptyState';
 import Badge from '../components/ui/Badge';
 
 export default function Dashboard() {
@@ -32,17 +31,15 @@ export default function Dashboard() {
   const moneyPositive = stats.money_balance <= 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 max-w-3xl">
       {/* Welcome Section */}
-      <div className="flex flex-col gap-0.5">
-        <h1 className="text-2xl font-bold text-stone-800">
-          مرحبا، {user?.full_name}
-        </h1>
-        <p className="text-stone-400 text-sm">{todayAr}</p>
+      <div>
+        <h1 className="text-xl font-bold text-stone-800">مرحبا، {user?.full_name}</h1>
+        <p className="text-stone-400 text-xs mt-0.5">{todayAr}</p>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* رصيد الفلوس */}
         <StatCard
           title="رصيد الفلوس"
@@ -73,22 +70,20 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* آخر عمليات الذهب */}
         <div className="card overflow-hidden">
-          <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-              <h2 className="font-bold text-stone-700 text-sm">آخر عمليات الذهب</h2>
-            </div>
+          <div className="px-4 py-2.5 border-b border-stone-100 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            <h2 className="font-bold text-stone-600 text-xs">آخر عمليات الذهب</h2>
           </div>
-          <div className="px-5 py-3">
+          <div className="px-4">
             {recent.deals.length === 0 ? (
-              <EmptyState title="لا توجد بيانات" />
+              <p className="py-4 text-center text-xs text-stone-300">مفيش عمليات</p>
             ) : (
               recent.deals.map((d: any, i: number) => (
-                <div key={i} className="flex justify-between items-center py-2.5 border-b border-stone-50 last:border-0">
-                  <div className="flex flex-col gap-1 min-w-0">
+                <div key={i} className="flex justify-between items-center py-2 border-b border-stone-50 last:border-0">
+                  <div className="flex flex-col gap-0.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-stone-800 text-sm truncate">{d.trader_name}</span>
                       <Badge
@@ -96,7 +91,7 @@ export default function Dashboard() {
                         color={d.deal_type === 'sell' ? 'orange' : 'amber'}
                       />
                     </div>
-                    <span className="text-xs text-stone-400">{fmtW(d.weight)} جم × {fmt(d.price_per_gram)}</span>
+                    <span className="text-[11px] text-stone-400">{fmtW(d.weight)} جم</span>
                   </div>
                   <span className={`font-bold text-sm shrink-0 mr-2 ${d.deal_type === 'sell' ? 'text-green-600' : 'text-red-600'}`}>
                     {fmt(d.total_amount)} ج
@@ -109,18 +104,16 @@ export default function Dashboard() {
 
         {/* آخر عمليات الفلوس */}
         <div className="card overflow-hidden">
-          <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-              <h2 className="font-bold text-stone-700 text-sm">آخر عمليات الفلوس</h2>
-            </div>
+          <div className="px-4 py-2.5 border-b border-stone-100 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <h2 className="font-bold text-stone-600 text-xs">آخر عمليات الفلوس</h2>
           </div>
-          <div className="px-5 py-3">
+          <div className="px-4">
             {recent.payments.length === 0 ? (
-              <EmptyState title="لا توجد بيانات" />
+              <p className="py-4 text-center text-xs text-stone-300">مفيش عمليات</p>
             ) : (
               recent.payments.map((p: any, i: number) => (
-                <div key={i} className="flex justify-between items-center py-2.5 border-b border-stone-50 last:border-0">
+                <div key={i} className="flex justify-between items-center py-2 border-b border-stone-50 last:border-0">
                   <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <span className="font-medium text-stone-800 text-sm truncate">{p.trader_name}</span>
                     <Badge
@@ -139,19 +132,17 @@ export default function Dashboard() {
 
         {/* آخر التحويلات */}
         <div className="card overflow-hidden">
-          <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-              <h2 className="font-bold text-stone-700 text-sm">آخر التحويلات</h2>
-            </div>
+          <div className="px-4 py-2.5 border-b border-stone-100 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+            <h2 className="font-bold text-stone-600 text-xs">آخر التحويلات</h2>
           </div>
-          <div className="px-5 py-3">
+          <div className="px-4">
             {recent.transfers.length === 0 ? (
-              <EmptyState title="لا توجد بيانات" />
+              <p className="py-4 text-center text-xs text-stone-300">مفيش تحويلات</p>
             ) : (
               recent.transfers.map((t: any, i: number) => (
-                <div key={i} className="flex justify-between items-center py-2.5 border-b border-stone-50 last:border-0">
-                  <span className="text-stone-700 text-sm">
+                <div key={i} className="flex justify-between items-center py-2 border-b border-stone-50 last:border-0">
+                  <span className="text-stone-700 text-sm min-w-0 truncate">
                     <span className="font-medium">{t.from_name}</span>
                     <span className="text-stone-400 mx-1">←</span>
                     <span className="font-medium">{t.to_name}</span>
