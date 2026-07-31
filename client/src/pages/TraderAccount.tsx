@@ -180,6 +180,7 @@ export default function TraderAccount() {
       if (item.deal_type === 'sell') return <Badge label="بيع" color="orange" />;
       if (item.deal_type === 'work') return <Badge label="شغل" color="red" />;
       if (item.deal_type === 'give') return <Badge label="لوجوهات" color="pink" />;
+      if (item.deal_type === 'give_scrap') return <Badge label="كسر" color="pink" />;
       if (item.deal_type === 'give_local_bar') return <Badge label="سبيكة بلدي" color="yellow" />;
       return <Badge label="شراء" color="amber" />;
     }

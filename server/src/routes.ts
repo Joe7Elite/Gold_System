@@ -60,7 +60,7 @@ router.get('/auth/me', auth, (req: AuthRequest, res: Response): void => {
 router.get('/traders', auth, (_req: AuthRequest, res: Response): void => {
   const traders = db.prepare(`
     SELECT t.*,
-      COALESCE((SELECT SUM(CASE WHEN gd.deal_type IN ('sell','give','give_local_bar') THEN -gd.total_amount ELSE gd.total_amount END) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as deals_net,
+      COALESCE((SELECT SUM(CASE WHEN gd.deal_type IN ('sell','give','give_scrap','give_local_bar') THEN -gd.total_amount ELSE gd.total_amount END) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as deals_net,
       COALESCE((SELECT SUM(CASE WHEN cp.payment_type='loan' THEN -cp.amount ELSE cp.amount END) FROM cash_payments cp WHERE cp.trader_id = t.id), 0) as payments_net,
       COALESCE((SELECT SUM(CASE WHEN gd.deal_type IN ('sell','work') THEN -gd.weight ELSE gd.weight END) FROM gold_deals gd WHERE gd.trader_id = t.id), 0) as gold_deals_net,
       COALESCE((SELECT SUM(gt.weight) FROM gold_transfers gt WHERE gt.from_trader_id = t.id), 0) as gold_out,
@@ -109,6 +109,7 @@ router.delete('/traders/:id', auth, (req: AuthRequest, res: Response): void => {
   if (!caller?.is_protected) { res.status(403).json({ error: 'مسموح بس للحساب الأساسي يحذف تجار' }); return; }
   const old = db.prepare('SELECT * FROM traders WHERE id = ?').get(req.params.id) as any;
   if (!old) { res.status(404).json({ error: 'التاجر مش موجود' }); return; }
+  if (old.is_pinned) { res.status(403).json({ error: 'الحساب ده ثابت ومينفعش يتحذف' }); return; }
   db.prepare('UPDATE traders SET is_active = 0 WHERE id = ?').run(req.params.id);
   logAudit(req.user!.id, 'delete', 'traders', +req.params.id, `حذف تاجر: ${old.name}`, old);
   res.json({ message: 'تم الحذف' });
@@ -132,7 +133,7 @@ router.get('/traders/:id/statement', auth, (req: AuthRequest, res: Response): vo
     'SELECT gt.*, t.name as from_trader_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders t ON gt.from_trader_id=t.id LEFT JOIN users u ON gt.created_by=u.id WHERE gt.to_trader_id=? ORDER BY gt.created_at DESC'
   ).all(req.params.id) as any[];
 
-  const dealsNet = deals.reduce((s, d) => s + (['sell','give','give_local_bar'].includes(d.deal_type) ? -d.total_amount : d.total_amount), 0);
+  const dealsNet = deals.reduce((s, d) => s + (['sell','give','give_scrap','give_local_bar'].includes(d.deal_type) ? -d.total_amount : d.total_amount), 0);
   const paymentsNet = payments.reduce((s, p) => s + (p.payment_type === 'loan' ? -p.amount : p.amount), 0);
   const goldDealsNet = deals.reduce((s, d) => s + (['sell','work'].includes(d.deal_type) ? -d.weight : d.weight), 0);
   const totalGoldOut = transfersOut.reduce((s, t) => s + t.weight, 0);
@@ -169,9 +170,9 @@ router.post('/transactions/deal', auth, (req: AuthRequest, res: Response): void 
   } else if (type === 'work') {
     price = 0;
     total = bodyTotal || 0; // المصنعية
-  } else if (type === 'give') {
+  } else if (type === 'give' || type === 'give_scrap') {
     price = 0;
-    total = 0; // لوجوهات - جرامات بس
+    total = 0; // لوجوهات / كسر - جرامات بس
   } else if (type === 'give_local_bar') {
     price = 8;
     total = (original_weight || weight) * 8; // سبيكة بلدي - 8ج/جرام
@@ -182,7 +183,7 @@ router.post('/transactions/deal', auth, (req: AuthRequest, res: Response): void 
   ).run(trader_id, weight, price, total, original_karat || 21, original_weight || weight, type, notes || '', req.user!.id);
 
   const trader = db.prepare('SELECT name FROM traders WHERE id=?').get(trader_id) as any;
-  const labels: Record<string, string> = { buy: 'شراء دهب من', sell: 'بيع دهب لـ', work: 'استلام شغل من', give: 'إدي لوجوهات لـ', give_local_bar: 'إدي سبيكة بلدي لـ' };
+  const labels: Record<string, string> = { buy: 'شراء دهب من', sell: 'بيع دهب لـ', work: 'استلام شغل من', give: 'إدي لوجوهات لـ', give_scrap: 'إدي كسر لـ', give_local_bar: 'إدي سبيكة بلدي لـ' };
   logAudit(req.user!.id, 'create', 'gold_deals', result.lastInsertRowid as number,
     `${labels[type] || type} ${trader?.name}: ${weight}جم${total ? ' - ' + total + ' ج' : ''}`);
 
@@ -389,7 +390,7 @@ router.delete('/reset-all', auth, (req: AuthRequest, res: Response): void => {
 // ==================== DASHBOARD ====================
 router.get('/dashboard', auth, (_req: AuthRequest, res: Response): void => {
   const totalTraders = (db.prepare('SELECT COUNT(*) as c FROM traders WHERE is_active=1').get() as any).c;
-  const dealsNet = (db.prepare("SELECT COALESCE(SUM(CASE WHEN deal_type IN ('sell','give','give_local_bar') THEN -total_amount ELSE total_amount END),0) as t FROM gold_deals").get() as any).t;
+  const dealsNet = (db.prepare("SELECT COALESCE(SUM(CASE WHEN deal_type IN ('sell','give','give_scrap','give_local_bar') THEN -total_amount ELSE total_amount END),0) as t FROM gold_deals").get() as any).t;
   const paymentsNet = (db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='loan' THEN -amount ELSE amount END),0) as t FROM cash_payments").get() as any).t;
   const totalGold = (db.prepare("SELECT COALESCE(SUM(CASE WHEN deal_type IN ('sell','work') THEN -weight ELSE weight END),0) as t FROM gold_deals").get() as any).t;
   const totalTransfers = (db.prepare('SELECT COALESCE(SUM(weight),0) as t FROM gold_transfers').get() as any).t;

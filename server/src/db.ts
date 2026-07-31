@@ -153,6 +153,7 @@ export async function initDb() {
   try { sqlDb.exec("ALTER TABLE users ADD COLUMN is_protected INTEGER DEFAULT 0"); saveDb(); } catch {}
   try { sqlDb.exec("ALTER TABLE traders ADD COLUMN base_karat INTEGER DEFAULT 21"); saveDb(); } catch {}
   try { sqlDb.exec("ALTER TABLE gold_transfers ADD COLUMN to_weight REAL"); saveDb(); } catch {}
+  try { sqlDb.exec("ALTER TABLE traders ADD COLUMN is_pinned INTEGER DEFAULT 0"); saveDb(); } catch {}
 
   // Create default admin user if not exists
   const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
@@ -172,6 +173,22 @@ export async function initDb() {
     ).run('Joe7Elite', hash, 'Joe', 'admin');
   }
   db.prepare('UPDATE users SET is_protected = 1 WHERE username = ?').run('Joe7Elite');
+
+  // حسابات ثابتة: صابر فوده عيار 18 و عيار 21
+  const pinned = [
+    { name: 'صابر فوده 18', base_karat: 18 },
+    { name: 'صابر فوده 21', base_karat: 21 },
+  ];
+  for (const p of pinned) {
+    const ex = db.prepare('SELECT id FROM traders WHERE name = ?').get(p.name) as any;
+    if (!ex) {
+      db.prepare("INSERT INTO traders (name, phone, address, notes, base_karat, is_pinned, is_active) VALUES (?, '', '', '', ?, 1, 1)")
+        .run(p.name, p.base_karat);
+    } else {
+      db.prepare('UPDATE traders SET is_pinned = 1, is_active = 1, base_karat = ? WHERE id = ?')
+        .run(p.base_karat, ex.id);
+    }
+  }
 }
 
 export default db;

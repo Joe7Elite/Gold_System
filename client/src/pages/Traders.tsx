@@ -6,17 +6,23 @@ import Modal from '../components/ui/Modal';
 import { PageLoader } from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 
-type Modal = 'none' | 'add-trader' | 'deal' | 'payment' | 'transfer' | 'work' | 'give' | 'gold-menu';
+type ModalKind = 'none' | 'add-trader' | 'deal' | 'payment' | 'transfer' | 'work' | 'give';
 type DealType = 'buy' | 'sell';
 type PaymentType = 'payment' | 'loan';
-type GiveType = 'give' | 'give_local_bar';
+type GiveType = 'give' | 'give_scrap' | 'give_local_bar';
+
+const GIVE_LABELS: Record<GiveType, string> = {
+  give: 'لوجوهات',
+  give_scrap: 'كسر',
+  give_local_bar: 'سبيكة بلدي',
+};
 
 export default function Traders() {
   const { user } = useAuth();
   const [traders, setTraders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [modal, setModal] = useState<Modal>('none');
+  const [modal, setModal] = useState<ModalKind>('none');
   const [form, setForm] = useState<any>({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -32,17 +38,23 @@ export default function Traders() {
   const fmtW = (n: number) =>
     n?.toLocaleString('ar-EG', { maximumFractionDigits: 2 }) || '0';
 
-  const filtered = traders.filter(
+  const pinned = traders.filter((t) => t.is_pinned);
+  const normal = traders.filter((t) => !t.is_pinned);
+  const filtered = normal.filter(
     (t) => t.name.includes(search) || t.phone?.includes(search)
   );
 
-  const openModal = (type: Modal, prefill?: any) => {
+  const openModal = (
+    type: ModalKind,
+    prefill?: any,
+    opts?: { giveType?: GiveType; dealType?: DealType; paymentType?: PaymentType }
+  ) => {
     setModal(type);
     setForm(prefill || {});
     setFormError('');
-    setDealType('buy');
-    setPaymentType('payment');
-    setGiveType('give');
+    setDealType(opts?.dealType || 'buy');
+    setPaymentType(opts?.paymentType || 'payment');
+    setGiveType(opts?.giveType || 'give');
   };
 
   const closeModal = () => {
@@ -61,7 +73,6 @@ export default function Traders() {
     }
   };
 
-  // When spike is selected, karat is forced to 24
   const effectiveKarat = Number(form.original_karat || 21);
 
   // عيار حساب التاجر (21 أو 18)
@@ -69,6 +80,7 @@ export default function Traders() {
     const t = traders.find((x) => String(x.id) === String(traderId));
     return Number(t?.base_karat) === 18 ? 18 : 21;
   };
+  const traderById = (id: any) => traders.find((x) => String(x.id) === String(id));
 
   // عيار حساب التاجر المختار حالياً في المودال
   const selectedBase = baseKaratOf(form.trader_id);
@@ -197,23 +209,148 @@ export default function Traders() {
     }
   };
 
+  // ── عرض الأرصدة بالألوان ──
+  const goldView = (v: number) =>
+    v > 0.004
+      ? { amount: fmtW(v), tag: 'ليك', cls: 'text-emerald-600' }
+      : v < -0.004
+      ? { amount: fmtW(-v), tag: 'عليك', cls: 'text-red-600' }
+      : { amount: '0', tag: 'مظبوط', cls: 'text-stone-400' };
+
+  const moneyView = (v: number) =>
+    v > 0.5
+      ? { amount: fmt(Math.round(v)), tag: 'عليك', cls: 'text-red-600' }
+      : v < -0.5
+      ? { amount: fmt(Math.round(-v)), tag: 'ليك', cls: 'text-emerald-600' }
+      : { amount: '0', tag: 'مظبوط', cls: 'text-stone-400' };
+
+  const Balances = ({ t }: { t: any }) => {
+    const g = goldView(t.gold_balance);
+    const m = moneyView(t.money_balance);
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl bg-stone-50 border border-stone-100 px-3 py-2">
+          <p className="text-[11px] text-stone-400 mb-0.5">الدهب</p>
+          <p className={`font-extrabold text-[15px] leading-tight ${g.cls}`}>
+            {g.amount} <span className="text-[11px] font-semibold">جم</span>
+          </p>
+          <p className={`text-[11px] font-bold ${g.cls}`}>{g.tag}</p>
+        </div>
+        <div className="rounded-xl bg-stone-50 border border-stone-100 px-3 py-2">
+          <p className="text-[11px] text-stone-400 mb-0.5">الفلوس</p>
+          <p className={`font-extrabold text-[15px] leading-tight ${m.cls}`}>
+            {m.amount} <span className="text-[11px] font-semibold">ج</span>
+          </p>
+          <p className={`text-[11px] font-bold ${m.cls}`}>{m.tag}</p>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return <PageLoader />;
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <h1 className="text-xl md:text-2xl font-bold text-stone-800">التجار</h1>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => openModal('add-trader')} className="btn-primary">+ تاجر جديد</button>
-          <button onClick={() => openModal('gold-menu')} className="btn-secondary text-base px-5 py-2.5">دهب</button>
-          <button onClick={() => openModal('payment')} className="btn-secondary text-base px-5 py-2.5">فلوس</button>
-          <button onClick={() => openModal('transfer')} className="btn-secondary text-base px-5 py-2.5">تحويل</button>
+    <div className="pb-4">
+      {/* ===== Header ===== */}
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-stone-800">التجار</h1>
+          <p className="text-xs text-stone-400 mt-0.5">{normal.length} تاجر + {pinned.length} حساب ثابت</p>
+        </div>
+        <button onClick={() => openModal('add-trader')} className="btn-primary shrink-0">
+          + تاجر جديد
+        </button>
+      </div>
+
+      {/* ===== قسم صابر فوده ===== */}
+      {pinned.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-sm shrink-0">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.958a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.446a1 1 0 00-.363 1.118l1.285 3.957c.3.922-.755 1.688-1.538 1.118l-3.367-2.446a1 1 0 00-1.176 0l-3.367 2.446c-.783.57-1.838-.196-1.538-1.118l1.285-3.957a1 1 0 00-.363-1.118L2.078 9.385c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.951-.69l1.27-3.958z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="font-bold text-stone-800 text-lg leading-tight">صابر فوده</h2>
+              <p className="text-xs text-stone-400">حساب ثابت — عيار 18 و عيار 21 كل واحد لوحده</p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {pinned.map((t) => {
+              const base = Number(t.base_karat) === 18 ? 18 : 21;
+              return (
+                <div key={t.id} className="rounded-2xl border border-amber-200/80 bg-white shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-l from-amber-600 to-amber-500 flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-bold text-base leading-tight">{t.name}</p>
+                      <p className="text-amber-100 text-[11px] mt-0.5">كل الأوزان بعيار {base}</p>
+                    </div>
+                    <div className="w-11 h-11 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                      <span className="text-white text-lg font-extrabold">{base}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 space-y-3">
+                    <Balances t={t} />
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <ActionBtn
+                        tone="red"
+                        label="استلام شغل"
+                        onClick={() => openModal('work', { trader_id: t.id, _locked: true, original_karat: String(base) })}
+                      />
+                      <ActionBtn
+                        tone="emerald"
+                        label="إدي كسر"
+                        onClick={() => openModal('give', { trader_id: t.id, _locked: true, _fixedGive: true, original_karat: String(base) }, { giveType: 'give_scrap' })}
+                      />
+                      <ActionBtn
+                        tone="yellow"
+                        label="سبيكة بلدي"
+                        onClick={() => openModal('give', { trader_id: t.id, _locked: true, _fixedGive: true }, { giveType: 'give_local_bar' })}
+                      />
+                      <ActionBtn
+                        tone="blue"
+                        label="تحويل منه"
+                        onClick={() => openModal('transfer', { from_trader_id: t.id, _lockedFrom: true, original_karat: String(base) })}
+                      />
+                      <ActionBtn
+                        tone="stone"
+                        label="فلوس"
+                        onClick={() => openModal('payment', { trader_id: t.id, _locked: true })}
+                      />
+                      <Link
+                        to={`/traders/${t.id}`}
+                        className="text-center text-xs font-bold py-2.5 rounded-xl bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors"
+                      >
+                        كشف الحساب
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ===== قسم التجار ===== */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-stone-600 to-stone-800 flex items-center justify-center shadow-sm shrink-0">
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="font-bold text-stone-800 text-lg leading-tight">باقي التجار</h2>
+          <p className="text-xs text-stone-400">كل العمليات جوه كارت التاجر</p>
         </div>
       </div>
 
       {/* Search */}
-      <div className="card px-4 py-3 mb-4">
+      <div className="card px-4 py-2.5 mb-3">
         <div className="flex items-center gap-3">
           <svg className="w-4 h-4 text-stone-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -224,155 +361,82 @@ export default function Traders() {
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 bg-transparent outline-none text-stone-700 placeholder:text-stone-400 text-sm"
           />
+          {search && (
+            <button onClick={() => setSearch('')} className="text-stone-400 hover:text-stone-600 text-lg leading-none">×</button>
+          )}
         </div>
       </div>
 
-      {/* Desktop Table */}
-      <div className="hidden md:block card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-stone-50/80">
-              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">الاسم</th>
-              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">التليفون</th>
-              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">رصيد الفلوس</th>
-              <th className="px-4 py-3 text-right uppercase text-xs tracking-wide text-stone-500 font-semibold">رصيد الدهب (جم)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((t) => (
-              <tr key={t.id} className="border-t border-stone-100 hover:bg-gold-50/50 transition-colors">
-                <td className="px-4 py-3">
-                  <Link
-                    to={`/traders/${t.id}`}
-                    className="text-gold-700 hover:text-gold-600 font-semibold"
-                  >
-                    {t.name}
-                  </Link>
-                  {Number(t.base_karat) === 18 && (
-                    <span className="ms-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">ع18</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-stone-500">{t.phone || '-'}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`font-bold ${
-                      t.money_balance > 0
-                        ? 'text-red-600'
-                        : t.money_balance < 0
-                        ? 'text-green-600'
-                        : 'text-stone-400'
-                    }`}
-                  >
-                    {fmt(Math.abs(t.money_balance))} ج
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`font-bold ${t.gold_balance > 0 ? 'text-emerald-600' : t.gold_balance < 0 ? 'text-red-600' : 'text-stone-400'}`}>
-                    {fmtW(Math.abs(t.gold_balance))} جم
-                  </span>
-                </td>
-                {(user as any)?.is_protected && (
-                  <td className="px-4 py-3">
-                    <button onClick={() => deleteTrader(t)} className="btn-ghost text-xs text-red-500 hover:bg-red-50 px-2 py-1">حذف</button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <EmptyState icon="👥" title="لا يوجد تجار" sub="أضف أول تاجر بالضغط على الزر أعلاه" />
-        )}
-      </div>
-
-      {/* Mobile Cards */}
-      <div className="md:hidden">
-        {filtered.length === 0 ? (
-          <EmptyState icon="👥" title="لا يوجد تجار" sub="أضف أول تاجر بالضغط على الزر أعلاه" />
-        ) : (
-          filtered.map((t) => (
-            <div key={t.id} className="card p-4 mb-3">
-              {/* Top: name + phone */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Link
-                    to={`/traders/${t.id}`}
-                    className="text-gold-700 hover:text-gold-600 font-semibold text-base"
-                  >
-                    {t.name}
-                  </Link>
-                  {Number(t.base_karat) === 18 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">ع18</span>
-                  )}
+      {filtered.length === 0 ? (
+        <EmptyState icon="👥" title="مفيش تجار" sub="أضف أول تاجر من زر (+ تاجر جديد)" />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((t) => {
+            const base = Number(t.base_karat) === 18 ? 18 : 21;
+            return (
+              <div key={t.id} className="card p-0 overflow-hidden hover:shadow-card transition-shadow">
+                {/* Card header */}
+                <div className="px-3.5 py-3 flex items-center justify-between gap-2 border-b border-stone-100 bg-stone-50/70">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold-100 to-gold-300 text-gold-900 flex items-center justify-center font-extrabold shrink-0">
+                      {(t.name || '?').trim().charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <Link to={`/traders/${t.id}`} className="block font-bold text-stone-800 truncate hover:text-gold-700">
+                        {t.name}
+                      </Link>
+                      <p className="text-[11px] text-stone-400 truncate">{t.phone || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] font-bold px-1.5 py-1 rounded ${base === 18 ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
+                      ع{base}
+                    </span>
+                    {(user as any)?.is_protected && (
+                      <button
+                        onClick={() => deleteTrader(t)}
+                        title="حذف التاجر"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span className="text-stone-400 text-sm">{t.phone || '-'}</span>
-              </div>
 
-              {/* Middle: two mini stat boxes */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-stone-50 rounded-xl px-3 py-2 text-center">
-                  <p className="text-xs text-stone-400 mb-0.5">رصيد الفلوس</p>
-                  <p className={`font-bold text-sm ${
-                    t.money_balance > 0
-                      ? 'text-red-600'
-                      : t.money_balance < 0
-                      ? 'text-green-600'
-                      : 'text-stone-400'
-                  }`}>
-                    {fmt(Math.abs(t.money_balance))} ج
-                  </p>
-                </div>
-                <div className="bg-stone-50 rounded-xl px-3 py-2 text-center">
-                  <p className="text-xs text-stone-400 mb-0.5">رصيد الدهب</p>
-                  <p className={`font-bold text-sm ${t.gold_balance > 0 ? 'text-emerald-600' : t.gold_balance < 0 ? 'text-red-600' : 'text-stone-400'}`}>{fmtW(Math.abs(t.gold_balance))} جم</p>
+                {/* Card body */}
+                <div className="p-3 space-y-2.5">
+                  <Balances t={t} />
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <ActionBtn tone="amber" label="قطع" onClick={() => openModal('deal', { trader_id: t.id, _locked: true })} />
+                    <ActionBtn tone="red" label="شغل" onClick={() => openModal('work', { trader_id: t.id, _locked: true })} />
+                    <ActionBtn tone="emerald" label="إدي" onClick={() => openModal('give', { trader_id: t.id, _locked: true })} />
+                    <ActionBtn tone="green" label="فلوس" onClick={() => openModal('payment', { trader_id: t.id, _locked: true })} />
+                    <ActionBtn tone="blue" label="تحويل" onClick={() => openModal('transfer', { from_trader_id: t.id, _lockedFrom: true })} />
+                    <Link
+                      to={`/traders/${t.id}`}
+                      className="text-center text-xs font-bold py-2 rounded-lg bg-stone-800 text-white hover:bg-stone-700 transition-colors"
+                    >
+                      كشف
+                    </Link>
+                  </div>
                 </div>
               </div>
-
-              {/* Bottom: delete button (protected user only) */}
-              {(user as any)?.is_protected && (
-                <div className="mt-2 pt-2 border-t border-stone-100">
-                  <button onClick={() => deleteTrader(t)} className="btn-ghost text-xs text-red-500 hover:bg-red-50 px-2 py-1">حذف</button>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ===== MODALS ===== */}
-
-      {/* ── Gold Menu (اختيار نوع عملية الدهب) ── */}
-      {modal === 'gold-menu' && (
-        <Modal title="عملية دهب" onClose={closeModal}>
-          <div className="grid grid-cols-1 gap-2">
-            <button onClick={() => { closeModal(); setTimeout(() => openModal('deal'), 100); }}
-              className="w-full text-right px-5 py-4 rounded-xl bg-stone-50 hover:bg-amber-50 hover:border-amber-200 border border-stone-200 transition-all">
-              <p className="font-bold text-stone-800 text-base">قطع</p>
-              <p className="text-stone-400 text-xs mt-0.5">شراء أو بيع دهب بسعر محدد</p>
-            </button>
-            <button onClick={() => { closeModal(); setTimeout(() => openModal('work'), 100); }}
-              className="w-full text-right px-5 py-4 rounded-xl bg-stone-50 hover:bg-orange-50 hover:border-orange-200 border border-stone-200 transition-all">
-              <p className="font-bold text-stone-800 text-base">استلام شغل</p>
-              <p className="text-stone-400 text-xs mt-0.5">استلام شغل من التاجر + مصنعية</p>
-            </button>
-            <button onClick={() => { closeModal(); setTimeout(() => openModal('give'), 100); }}
-              className="w-full text-right px-5 py-4 rounded-xl bg-stone-50 hover:bg-emerald-50 hover:border-emerald-200 border border-stone-200 transition-all">
-              <p className="font-bold text-stone-800 text-base">إدي للتاجر</p>
-              <p className="text-stone-400 text-xs mt-0.5">لوجوهات أو سبيكة بلدي</p>
-            </button>
-          </div>
-        </Modal>
-      )}
 
       {/* ── Add Trader ── */}
       {modal === 'add-trader' && (
         <Modal title="إضافة تاجر جديد" onClose={closeModal}>
           <form onSubmit={handleSubmit} className="space-y-3">
-            {formError && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
-                {formError}
-              </div>
-            )}
+            {formError && <FormError msg={formError} />}
             <input
               placeholder="اسم التاجر *"
               value={form.name || ''}
@@ -484,11 +548,11 @@ export default function Traders() {
       {modal === 'deal' && (
         <Modal title="قطع" onClose={closeModal}>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {formError && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
-                {formError}
-              </div>
-            )}
+            {formError && <FormError msg={formError} />}
+
+            <TraderField
+              form={form} setForm={setForm} traders={traders} traderById={traderById} field="trader_id"
+            />
 
             <div>
               <p className="text-sm font-medium text-stone-600 mb-2">نوع القطع</p>
@@ -513,42 +577,20 @@ export default function Traders() {
               </div>
             </div>
 
-            <select
-              value={form.trader_id || ''}
-              onChange={(e) => setForm({ ...form, trader_id: Number(e.target.value) })}
-              className="input-field"
-              required
-            >
-              <option value="">اختار التاجر</option>
-              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>)}
-            </select>
-
             <div className="grid grid-cols-2 gap-3">
               <input
-                type="number"
-                step="any"
-                min="0"
+                type="number" step="any" min="0"
                 placeholder="الوزن (جرام)"
                 value={form.weight || ''}
                 onChange={(e) => setForm({ ...form, weight: e.target.value })}
                 className="input-field"
                 required
               />
-              <select
-                value={form.original_karat || '21'}
-                onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
-                className="input-field"
-              >
-                <option value="21">عيار 21</option>
-                <option value="18">عيار 18</option>
-                <option value="24">عيار 24 (سبايك)</option>
-              </select>
+              <KaratSelect form={form} setForm={setForm} />
             </div>
 
             <input
-              type="number"
-              step="any"
-              min="0"
+              type="number" step="any" min="0"
               placeholder="سعر الجرام"
               value={form.price_per_gram || ''}
               onChange={(e) => setForm({ ...form, price_per_gram: e.target.value })}
@@ -584,48 +626,26 @@ export default function Traders() {
       {modal === 'work' && (
         <Modal title="استلام شغل" onClose={closeModal}>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {formError && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
-                {formError}
-              </div>
-            )}
+            {formError && <FormError msg={formError} />}
 
-            <select
-              value={form.trader_id || ''}
-              onChange={(e) => setForm({ ...form, trader_id: Number(e.target.value) })}
-              className="input-field"
-              required
-            >
-              <option value="">اختار التاجر</option>
-              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>)}
-            </select>
+            <TraderField
+              form={form} setForm={setForm} traders={traders} traderById={traderById} field="trader_id"
+            />
 
             <div className="grid grid-cols-2 gap-3">
               <input
-                type="number"
-                step="any"
-                min="0"
+                type="number" step="any" min="0"
                 placeholder="الوزن (جرام)"
                 value={form.weight || ''}
                 onChange={(e) => setForm({ ...form, weight: e.target.value })}
                 className="input-field"
                 required
               />
-              <select
-                value={form.original_karat || '21'}
-                onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
-                className="input-field"
-              >
-                <option value="21">عيار 21</option>
-                <option value="18">عيار 18</option>
-                <option value="24">عيار 24 (سبايك)</option>
-              </select>
+              <KaratSelect form={form} setForm={setForm} />
             </div>
 
             <input
-              type="number"
-              step="any"
-              min="0"
+              type="number" step="any" min="0"
               placeholder="المصنعية (جنيه)"
               value={form.craftsmanship || ''}
               onChange={(e) => setForm({ ...form, craftsmanship: e.target.value })}
@@ -637,8 +657,8 @@ export default function Traders() {
                 {effectiveKarat !== selectedBase && (
                   <div className="text-stone-600">الوزن بعيار {selectedBase}: <span className="font-bold text-amber-800">{dealTotal().weight21.toFixed(3)} جم</span></div>
                 )}
-                <div className="text-amber-700 font-medium">
-                  هيتحسب {effectiveKarat !== selectedBase ? dealTotal().weight21.toFixed(3) : form.weight} جم عليك
+                <div className="text-red-600 font-medium">
+                  هيتحسب {effectiveKarat !== selectedBase ? dealTotal().weight21.toFixed(3) : form.weight} جم <span className="font-bold">عليك</span>
                 </div>
                 {form.craftsmanship && (
                   <div className="text-red-600 font-medium">+ مصنعية عليك: {fmt(Number(form.craftsmanship))} جنيه</div>
@@ -653,59 +673,46 @@ export default function Traders() {
               className="input-field"
               rows={2}
             />
-            <ModalButtons submitting={submitting} onCancel={closeModal} label="تسجيل استلام" color="amber" />
+            <ModalButtons submitting={submitting} onCancel={closeModal} label="تسجيل استلام" />
           </form>
         </Modal>
       )}
 
-      {/* ── إدي للتاجر (لوجوهات / سبيكة بلدي) ── */}
+      {/* ── إدي للتاجر (لوجوهات / كسر / سبيكة بلدي) ── */}
       {modal === 'give' && (
-        <Modal title="إدي للتاجر" onClose={closeModal}>
+        <Modal title={form._fixedGive ? `إدي ${GIVE_LABELS[giveType]}` : 'إدي للتاجر'} onClose={closeModal}>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {formError && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
-                {formError}
+            {formError && <FormError msg={formError} />}
+
+            <TraderField
+              form={form} setForm={setForm} traders={traders} traderById={traderById} field="trader_id"
+            />
+
+            {!form._fixedGive && (
+              <div>
+                <p className="text-sm font-medium text-stone-600 mb-2">النوع</p>
+                <div className="bg-stone-100 rounded-xl p-1 flex gap-1">
+                  {(['give', 'give_scrap', 'give_local_bar'] as GiveType[]).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setGiveType(v)}
+                      className={`flex-1 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+                        giveType === v
+                          ? 'bg-white text-stone-800 shadow-sm'
+                          : 'text-stone-500 hover:text-stone-700'
+                      }`}
+                    >
+                      {GIVE_LABELS[v]}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div>
-              <p className="text-sm font-medium text-stone-600 mb-2">النوع</p>
-              <div className="bg-stone-100 rounded-xl p-1 flex gap-1">
-                {([
-                  { value: 'give' as GiveType, label: 'لوجوهات' },
-                  { value: 'give_local_bar' as GiveType, label: 'سبيكة بلدي' },
-                ]).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setGiveType(opt.value)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                      giveType === opt.value
-                        ? 'bg-white text-stone-800 shadow-sm'
-                        : 'text-stone-500 hover:text-stone-700'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <select
-              value={form.trader_id || ''}
-              onChange={(e) => setForm({ ...form, trader_id: Number(e.target.value) })}
-              className="input-field"
-              required
-            >
-              <option value="">اختار التاجر</option>
-              {traders.map((t) => <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>)}
-            </select>
-
             <div className="grid grid-cols-2 gap-3">
               <input
-                type="number"
-                step="any"
-                min="0"
+                type="number" step="any" min="0"
                 placeholder="الوزن (جرام)"
                 value={form.weight || ''}
                 onChange={(e) => setForm({ ...form, weight: e.target.value })}
@@ -714,25 +721,15 @@ export default function Traders() {
               />
               {giveType === 'give_local_bar' ? (
                 <input
-                  type="number"
-                  step="any"
-                  min="0"
-                  placeholder="عيار السبيكة (مثل 750, 817)"
+                  type="number" step="any" min="0"
+                  placeholder="عيار السبيكة (750, 817...)"
                   value={form.fineness || ''}
                   onChange={(e) => setForm({ ...form, fineness: e.target.value })}
                   className="input-field"
                   required
                 />
               ) : (
-                <select
-                  value={form.original_karat || '21'}
-                  onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
-                  className="input-field"
-                >
-                  <option value="21">عيار 21</option>
-                  <option value="18">عيار 18</option>
-                  <option value="24">عيار 24 (سبايك)</option>
-                </select>
+                <KaratSelect form={form} setForm={setForm} />
               )}
             </div>
 
@@ -765,7 +762,7 @@ export default function Traders() {
               className="input-field"
               rows={2}
             />
-            <ModalButtons submitting={submitting} onCancel={closeModal} label="تسجيل" color="purple" />
+            <ModalButtons submitting={submitting} onCancel={closeModal} label="تسجيل" />
           </form>
         </Modal>
       )}
@@ -774,13 +771,12 @@ export default function Traders() {
       {modal === 'payment' && (
         <Modal title="عملية فلوس" onClose={closeModal}>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {formError && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
-                {formError}
-              </div>
-            )}
+            {formError && <FormError msg={formError} />}
 
-            {/* Payment type selector */}
+            <TraderField
+              form={form} setForm={setForm} traders={traders} traderById={traderById} field="trader_id"
+            />
+
             <div>
               <p className="text-sm font-medium text-stone-600 mb-2">نوع العملية</p>
               <div className="bg-stone-100 rounded-xl p-1 flex gap-1">
@@ -806,23 +802,8 @@ export default function Traders() {
               </div>
             </div>
 
-            {/* Trader selector */}
-            <select
-              value={form.trader_id || ''}
-              onChange={(e) => setForm({ ...form, trader_id: Number(e.target.value) })}
-              className="input-field"
-              required
-            >
-              <option value="">اختار التاجر</option>
-              {traders.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-
             <input
-              type="number"
-              step="any"
-              min="0"
+              type="number" step="any" min="0"
               placeholder="المبلغ (جنيه)"
               value={form.amount || ''}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -841,7 +822,6 @@ export default function Traders() {
               submitting={submitting}
               onCancel={closeModal}
               label={paymentType === 'payment' ? 'تسجيل الدفع' : 'تسجيل السلفة'}
-              color={paymentType === 'payment' ? 'green' : 'purple'}
             />
           </form>
         </Modal>
@@ -851,24 +831,24 @@ export default function Traders() {
       {modal === 'transfer' && (
         <Modal title="تحويل دهب" onClose={closeModal}>
           <form onSubmit={handleSubmit} className="space-y-3">
-            {formError && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
-                {formError}
-              </div>
+            {formError && <FormError msg={formError} />}
+
+            {form._lockedFrom ? (
+              <LockedTrader label="من" trader={traderById(form.from_trader_id)} />
+            ) : (
+              <select
+                value={form.from_trader_id || ''}
+                onChange={(e) => setForm({ ...form, from_trader_id: Number(e.target.value) })}
+                className="input-field"
+                required
+              >
+                <option value="">من تاجر...</option>
+                {traders.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>
+                ))}
+              </select>
             )}
-            <select
-              value={form.from_trader_id || ''}
-              onChange={(e) =>
-                setForm({ ...form, from_trader_id: Number(e.target.value) })
-              }
-              className="input-field"
-              required
-            >
-              <option value="">من تاجر...</option>
-              {traders.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}</option>
-              ))}
-            </select>
+
             <div>
               <input
                 list="to-trader-list"
@@ -910,25 +890,16 @@ export default function Traders() {
 
             <div className="grid grid-cols-2 gap-3">
               <input
-                type="number"
-                step="any"
-                min="0"
+                type="number" step="any" min="0"
                 placeholder="الوزن (جرام)"
                 value={form.weight || ''}
                 onChange={(e) => setForm({ ...form, weight: e.target.value })}
                 className="input-field"
                 required
               />
-              <select
-                value={form.original_karat || '21'}
-                onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
-                className="input-field"
-              >
-                <option value="21">عيار 21</option>
-                <option value="18">عيار 18</option>
-                <option value="24">عيار 24 (سبايك)</option>
-              </select>
+              <KaratSelect form={form} setForm={setForm} />
             </div>
+
             {form.weight && (() => {
               const k = Number(form.original_karat || 21);
               const w = Number(form.weight) || 0;
@@ -952,6 +923,7 @@ export default function Traders() {
                 </div>
               );
             })()}
+
             <textarea
               placeholder="ملاحظات"
               value={form.notes || ''}
@@ -959,12 +931,7 @@ export default function Traders() {
               className="input-field"
               rows={2}
             />
-            <ModalButtons
-              submitting={submitting}
-              onCancel={closeModal}
-              label="تسجيل التحويل"
-              color="blue"
-            />
+            <ModalButtons submitting={submitting} onCancel={closeModal} label="تسجيل التحويل" />
           </form>
         </Modal>
       )}
@@ -972,16 +939,99 @@ export default function Traders() {
   );
 }
 
+/* ===================== Sub components ===================== */
+
+const TONES: Record<string, string> = {
+  amber: 'bg-amber-50 text-amber-800 hover:bg-amber-100',
+  red: 'bg-red-50 text-red-700 hover:bg-red-100',
+  emerald: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+  green: 'bg-green-50 text-green-700 hover:bg-green-100',
+  blue: 'bg-blue-50 text-blue-700 hover:bg-blue-100',
+  yellow: 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100',
+  stone: 'bg-stone-100 text-stone-600 hover:bg-stone-200',
+};
+
+function ActionBtn({ label, tone, onClick }: { label: string; tone: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-xs font-bold py-2 sm:py-2.5 rounded-lg transition-colors ${TONES[tone] || TONES.stone}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function FormError({ msg }: { msg: string }) {
+  return (
+    <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">{msg}</div>
+  );
+}
+
+function LockedTrader({ trader, label = 'التاجر' }: { trader: any; label?: string }) {
+  const base = Number(trader?.base_karat) === 18 ? 18 : 21;
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-stone-50 border border-stone-200 px-3.5 py-2.5">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gold-100 to-gold-300 text-gold-900 flex items-center justify-center font-extrabold text-sm shrink-0">
+        {(trader?.name || '?').trim().charAt(0)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-stone-400 leading-none mb-0.5">{label}</p>
+        <p className="font-bold text-stone-800 text-sm truncate">{trader?.name || '—'}</p>
+      </div>
+      <span className={`text-[10px] font-bold px-1.5 py-1 rounded shrink-0 ${base === 18 ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-600'}`}>
+        حساب ع{base}
+      </span>
+    </div>
+  );
+}
+
+function TraderField({
+  form, setForm, traders, traderById, field,
+}: {
+  form: any; setForm: (v: any) => void; traders: any[]; traderById: (id: any) => any; field: string;
+}) {
+  if (form._locked) return <LockedTrader trader={traderById(form[field])} />;
+  return (
+    <select
+      value={form[field] || ''}
+      onChange={(e) => setForm({ ...form, [field]: Number(e.target.value) })}
+      className="input-field"
+      required
+    >
+      <option value="">اختار التاجر</option>
+      {traders.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.name}{Number(t.base_karat) === 18 ? ' (عيار 18)' : ''}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function KaratSelect({ form, setForm }: { form: any; setForm: (v: any) => void }) {
+  return (
+    <select
+      value={form.original_karat || '21'}
+      onChange={(e) => setForm({ ...form, original_karat: e.target.value })}
+      className="input-field"
+    >
+      <option value="21">عيار 21</option>
+      <option value="18">عيار 18</option>
+      <option value="24">عيار 24 (سبايك)</option>
+    </select>
+  );
+}
+
 function ModalButtons({
   submitting,
   onCancel,
   label,
-  color = 'amber',
 }: {
   submitting: boolean;
   onCancel: () => void;
   label: string;
-  color?: 'amber' | 'green' | 'blue' | 'purple';
 }) {
   return (
     <div className="flex gap-2 pt-2">
