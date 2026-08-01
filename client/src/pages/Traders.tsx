@@ -108,12 +108,9 @@ export default function Traders() {
         className="flex items-center justify-between gap-3 card px-4 py-3 mb-3 hover:shadow-card transition-shadow"
       >
         <span className="font-bold text-stone-800 text-sm">صابر فوده</span>
-        <span className="flex items-center gap-2 text-xs text-stone-400">
-          حساب ثابت 18 / 21
-          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </span>
+        <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
       </Link>
 
       {/* Search */}

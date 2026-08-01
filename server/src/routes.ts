@@ -406,17 +406,19 @@ router.delete('/reset-all', auth, (req: AuthRequest, res: Response): void => {
 
 // ==================== DASHBOARD ====================
 router.get('/dashboard', auth, (_req: AuthRequest, res: Response): void => {
-  const totalTraders = (db.prepare('SELECT COUNT(*) as c FROM traders WHERE is_active=1').get() as any).c;
-  const dealsNet = (db.prepare("SELECT COALESCE(SUM(CASE WHEN deal_type IN ('sell','give','give_scrap','give_local_bar') THEN -total_amount ELSE total_amount END),0) as t FROM gold_deals").get() as any).t;
-  const paymentsNet = (db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='loan' THEN -amount ELSE amount END),0) as t FROM cash_payments").get() as any).t;
-  const totalGold = (db.prepare("SELECT COALESCE(SUM(CASE WHEN deal_type IN ('sell','work') THEN -weight ELSE weight END),0) as t FROM gold_deals").get() as any).t;
+  // الحسابات الثابتة (صابر فوده) ليها صفحتها لوحدها ومش بتتحسب في لوحة التحكم
+  const NP = 'trader_id IN (SELECT id FROM traders WHERE COALESCE(is_pinned,0)=0)';
+  const totalTraders = (db.prepare('SELECT COUNT(*) as c FROM traders WHERE is_active=1 AND COALESCE(is_pinned,0)=0').get() as any).c;
+  const dealsNet = (db.prepare(`SELECT COALESCE(SUM(CASE WHEN deal_type IN ('sell','give','give_scrap','give_local_bar') THEN -total_amount ELSE total_amount END),0) as t FROM gold_deals WHERE ${NP}`).get() as any).t;
+  const paymentsNet = (db.prepare(`SELECT COALESCE(SUM(CASE WHEN payment_type='loan' THEN -amount ELSE amount END),0) as t FROM cash_payments WHERE ${NP}`).get() as any).t;
+  const totalGold = (db.prepare(`SELECT COALESCE(SUM(CASE WHEN deal_type IN ('sell','work') THEN -weight ELSE weight END),0) as t FROM gold_deals WHERE ${NP}`).get() as any).t;
   const totalTransfers = (db.prepare('SELECT COALESCE(SUM(weight),0) as t FROM gold_transfers').get() as any).t;
 
   const recentDeals = db.prepare(
-    'SELECT gd.*, t.name as trader_name, u.full_name as created_by_name FROM gold_deals gd LEFT JOIN traders t ON gd.trader_id=t.id LEFT JOIN users u ON gd.created_by=u.id ORDER BY gd.created_at DESC LIMIT 5'
+    `SELECT gd.*, t.name as trader_name, u.full_name as created_by_name FROM gold_deals gd LEFT JOIN traders t ON gd.trader_id=t.id LEFT JOIN users u ON gd.created_by=u.id WHERE COALESCE(t.is_pinned,0)=0 ORDER BY gd.created_at DESC LIMIT 5`
   ).all();
   const recentPayments = db.prepare(
-    'SELECT cp.*, t.name as trader_name, u.full_name as created_by_name FROM cash_payments cp LEFT JOIN traders t ON cp.trader_id=t.id LEFT JOIN users u ON cp.created_by=u.id ORDER BY cp.created_at DESC LIMIT 5'
+    `SELECT cp.*, t.name as trader_name, u.full_name as created_by_name FROM cash_payments cp LEFT JOIN traders t ON cp.trader_id=t.id LEFT JOIN users u ON cp.created_by=u.id WHERE COALESCE(t.is_pinned,0)=0 ORDER BY cp.created_at DESC LIMIT 5`
   ).all();
   const recentTransfers = db.prepare(
     'SELECT gt.*, tf.name as from_name, tt.name as to_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders tf ON gt.from_trader_id=tf.id LEFT JOIN traders tt ON gt.to_trader_id=tt.id LEFT JOIN users u ON gt.created_by=u.id ORDER BY gt.created_at DESC LIMIT 5'

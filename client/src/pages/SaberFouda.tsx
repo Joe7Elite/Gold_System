@@ -61,12 +61,7 @@ export default function SaberFouda() {
   return (
     <div className="space-y-4 max-w-3xl pb-4">
       {/* ── العنوان ── */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-stone-800">صابر فوده</h1>
-        <p className="text-sm text-stone-500 mt-0.5">
-          حسابين ثابتين — عيار 18 وعيار 21، كل واحد لوحده
-        </p>
-      </div>
+      <h1 className="text-2xl font-extrabold text-stone-800">صابر فوده</h1>
 
       {accounts.length === 0 && (
         <div className="card p-6 text-center text-stone-500 text-sm">
@@ -86,10 +81,7 @@ export default function SaberFouda() {
               to={`/traders/${t.id}`}
               className="flex items-center justify-between gap-3 px-4 py-3 border-b border-stone-100 hover:bg-stone-50 transition-colors"
             >
-              <div>
-                <h2 className="font-bold text-stone-800">عيار {base}</h2>
-                <p className="text-[11px] text-stone-400 mt-0.5">دوس لكشف الحساب</p>
-              </div>
+              <h2 className="font-bold text-stone-800">عيار {base}</h2>
               <svg className="w-4 h-4 text-stone-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
