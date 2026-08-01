@@ -117,16 +117,24 @@ export default function TraderOps({
         });
       } else if (kind === 'transfer') {
         const fromId = await resolveTrader('from_trader_id', 'from_trader_name');
-        const toId = await resolveTrader('to_trader_id', 'to_trader_name');
-        if (!fromId || !toId) { setFormError('اختار أو اكتب اسم التاجر'); setSubmitting(false); return; }
-        if (String(fromId) === String(toId)) { setFormError('مينفعش تحول لنفس التاجر'); setSubmitting(false); return; }
+        if (!fromId) { setFormError('اختار أو اكتب اسم التاجر'); setSubmitting(false); return; }
+
+        // لو مختار تاجر مسجل ياخد الـ id، غير كده الاسم يتسجل من غير حساب
+        const toName = (form.to_trader_name || '').trim();
+        const existingTo = form.to_trader_id || traders.find((t) => t.name === toName)?.id;
+        if (!existingTo && !toName) { setFormError('اكتب اسم اللي بتحوّل له'); setSubmitting(false); return; }
+        if (existingTo && String(fromId) === String(existingTo)) {
+          setFormError('مينفعش تحول لنفس التاجر'); setSubmitting(false); return;
+        }
+
         const origWeight = Number(form.weight);
         // الوزن المكتوب بيبقى بعيار حساب التاجر اللي بنحوّل منه
         // والسيرفر بيحوّله لعيار حساب التاجر اللي بنحوّل له
         const fromBase = baseKaratOf(fromId);
         await api.post('/transactions/transfer', {
           from_trader_id: fromId,
-          to_trader_id: toId,
+          to_trader_id: existingTo || null,
+          to_external_name: existingTo ? null : toName,
           weight: origWeight,
           original_karat: fromBase,
           original_weight: origWeight,
@@ -166,7 +174,7 @@ export default function TraderOps({
   );
 
   const nameInput = (
-    idField: string, nameField: string, placeholder: string, listId: string, excludeId?: any
+    idField: string, nameField: string, placeholder: string, listId: string, excludeId?: any, external?: boolean
   ) => (
     <div>
       <input
@@ -187,7 +195,9 @@ export default function TraderOps({
         ))}
       </datalist>
       {!form[idField] && form[nameField]?.trim() && (
-        <p className="mt-1.5 text-xs text-amber-700">تاجر جديد — هيتعمل حساب جديد باسمه</p>
+        <p className="mt-1.5 text-xs text-stone-500">
+          {external ? 'اسم من غير حساب — هيتسجل في كشف الحساب بس' : 'تاجر جديد — هيتعمل حساب جديد باسمه'}
+        </p>
       )}
     </div>
   );
@@ -208,7 +218,7 @@ export default function TraderOps({
               : nameInput('from_trader_id', 'from_trader_name', 'من تاجر... (اختار أو اكتب اسم جديد)', 'from-list', form.to_trader_id)}
             {form._lockedTo
               ? <LockedTrader label="لـ" trader={traderById(form.to_trader_id)} />
-              : nameInput('to_trader_id', 'to_trader_name', 'لـ تاجر... (اختار أو اكتب اسم جديد)', 'to-list', form.from_trader_id)}
+              : nameInput('to_trader_id', 'to_trader_name', 'لـ... (اختار تاجر أو اكتب أي اسم)', 'to-list', form.from_trader_id, true)}
           </div>
         )}
 
@@ -384,8 +394,9 @@ export default function TraderOps({
         {/* ── معاينة التحويل ── */}
         {kind === 'transfer' && form.weight && (() => {
           const w = Number(form.weight) || 0;
-          const fBase = form.from_trader_id ? baseKaratOf(form.from_trader_id) : (Number(form.from_base_karat) === 18 ? 18 : 21);
-          const tBase = form.to_trader_id ? baseKaratOf(form.to_trader_id) : (Number(form.to_base_karat) === 18 ? 18 : 21);
+          const fBase = form.from_trader_id ? baseKaratOf(form.from_trader_id) : 21;
+          if (!form.to_trader_id) return null;
+          const tBase = baseKaratOf(form.to_trader_id);
           if (fBase === tBase) return null;
           return (
             <div className="card p-3 text-sm space-y-1">

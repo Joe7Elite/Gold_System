@@ -378,6 +378,7 @@ export default function TraderAccount() {
                     {item._type === 'transfer_out' && (
                       <span>
                         تحويل لـ {item.to_trader_name} - {fmtW(item.weight)} جم
+                        {item.to_is_external ? <span className="text-xs text-stone-400"> (من غير حساب)</span> : null}
                         {item.notes ? <span className="block text-xs text-stone-400">{item.notes}</span> : null}
                       </span>
                     )}
@@ -485,6 +486,7 @@ export default function TraderAccount() {
                 {item._type === 'transfer_out' && (
                   <span>
                     تحويل لـ {item.to_trader_name} - {fmtW(item.weight)} جم
+                    {item.to_is_external ? <span className="text-xs text-stone-400"> (من غير حساب)</span> : null}
                     {item.notes ? <span className="block text-xs text-stone-400 mt-0.5">{item.notes}</span> : null}
                   </span>
                 )}

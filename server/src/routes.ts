@@ -140,7 +140,7 @@ router.get('/traders/:id/statement', auth, (req: AuthRequest, res: Response): vo
     'SELECT cp.*, u.full_name as created_by_name FROM cash_payments cp LEFT JOIN users u ON cp.created_by=u.id WHERE cp.trader_id=? ORDER BY cp.created_at DESC'
   ).all(req.params.id) as any[];
   const transfersOut = db.prepare(
-    'SELECT gt.*, t.name as to_trader_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders t ON gt.to_trader_id=t.id LEFT JOIN users u ON gt.created_by=u.id WHERE gt.from_trader_id=? ORDER BY gt.created_at DESC'
+    'SELECT gt.*, COALESCE(t.name, gt.to_external_name) as to_trader_name, (gt.to_trader_id IS NULL) as to_is_external, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders t ON gt.to_trader_id=t.id LEFT JOIN users u ON gt.created_by=u.id WHERE gt.from_trader_id=? ORDER BY gt.created_at DESC'
   ).all(req.params.id) as any[];
   const transfersIn = db.prepare(
     'SELECT gt.*, t.name as from_trader_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders t ON gt.from_trader_id=t.id LEFT JOIN users u ON gt.created_by=u.id WHERE gt.to_trader_id=? ORDER BY gt.created_at DESC'
@@ -252,26 +252,31 @@ router.put('/transactions/payment/:id', auth, (req: AuthRequest, res: Response):
 
 // تحويل دهب
 router.post('/transactions/transfer', auth, (req: AuthRequest, res: Response): void => {
-  const { from_trader_id, to_trader_id, weight, original_karat, original_weight, notes } = req.body;
-  if (!from_trader_id || !to_trader_id || !weight) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
-  if (from_trader_id === to_trader_id) { res.status(400).json({ error: 'مينفعش تحول من تاجر لنفسه' }); return; }
+  const { from_trader_id, to_trader_id, to_external_name, weight, original_karat, original_weight, notes } = req.body;
+  const extName = (to_external_name || '').trim();
+  if (!from_trader_id || !weight) { res.status(400).json({ error: 'بيانات ناقصة' }); return; }
+  if (!to_trader_id && !extName) { res.status(400).json({ error: 'اكتب اسم اللي بتحوّل له' }); return; }
+  if (to_trader_id && from_trader_id === to_trader_id) { res.status(400).json({ error: 'مينفعش تحول من تاجر لنفسه' }); return; }
 
   // الوزن بيتحسب بعيار حساب كل تاجر لوحده
   const ok = Number(original_karat) || 21;
   const ow = Number(original_weight) || Number(weight);
   const fromBase = baseKaratOf(from_trader_id);
-  const toBase = baseKaratOf(to_trader_id);
   const fromW = (ow * ok) / fromBase;
-  const toW = (ow * ok) / toBase;
+  // تحويل خارجي (من غير حساب): مفيش طرف تاني يتحسب عليه
+  const toBase = to_trader_id ? baseKaratOf(to_trader_id) : fromBase;
+  const toW = to_trader_id ? (ow * ok) / toBase : 0;
 
   const result = db.prepare(
-    'INSERT INTO gold_transfers (from_trader_id, to_trader_id, weight, to_weight, original_karat, original_weight, notes, created_by) VALUES (?,?,?,?,?,?,?,?)'
-  ).run(from_trader_id, to_trader_id, fromW, toW, ok, ow, notes || '', req.user!.id);
+    'INSERT INTO gold_transfers (from_trader_id, to_trader_id, to_external_name, weight, to_weight, original_karat, original_weight, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?)'
+  ).run(from_trader_id, to_trader_id || null, extName || null, fromW, toW, ok, ow, notes || '', req.user!.id);
 
   const from = db.prepare('SELECT name FROM traders WHERE id=?').get(from_trader_id) as any;
-  const to = db.prepare('SELECT name FROM traders WHERE id=?').get(to_trader_id) as any;
+  const toName = to_trader_id
+    ? (db.prepare('SELECT name FROM traders WHERE id=?').get(to_trader_id) as any)?.name
+    : `${extName} (من غير حساب)`;
   logAudit(req.user!.id, 'create', 'gold_transfers', result.lastInsertRowid as number,
-    `تحويل ${ow}جم عيار ${ok} من ${from?.name} (${fromW.toFixed(2)}جم/${fromBase}) لـ ${to?.name} (${toW.toFixed(2)}جم/${toBase})`);
+    `تحويل ${ow}جم عيار ${ok} من ${from?.name} (${fromW.toFixed(2)}جم/${fromBase}) لـ ${toName}`);
 
   res.json({ id: result.lastInsertRowid, weight: fromW, to_weight: toW, message: 'تم التحويل' });
 });
@@ -287,12 +292,11 @@ router.put('/transactions/transfer/:id', auth, (req: AuthRequest, res: Response)
   const ok = Number(original_karat) || old.original_karat || 21;
   const ow = Number(original_weight) || old.original_weight || old.weight;
   const fromBase = baseKaratOf(fromId);
-  const toBase = baseKaratOf(toId);
   const fromW = (ow * ok) / fromBase;
-  const toW = (ow * ok) / toBase;
+  const toW = toId ? (ow * ok) / baseKaratOf(toId) : 0;
 
   db.prepare('UPDATE gold_transfers SET from_trader_id=?, to_trader_id=?, weight=?, to_weight=?, original_karat=?, original_weight=?, notes=? WHERE id=?')
-    .run(fromId, toId, fromW, toW, ok, ow, notes ?? old.notes, req.params.id);
+    .run(fromId, toId || null, fromW, toW, ok, ow, notes ?? old.notes, req.params.id);
 
   logAudit(req.user!.id, 'update', 'gold_transfers', +req.params.id, 'تعديل تحويل', old, req.body);
   res.json({ message: 'تم التعديل' });
@@ -421,7 +425,7 @@ router.get('/dashboard', auth, (_req: AuthRequest, res: Response): void => {
     `SELECT cp.*, t.name as trader_name, u.full_name as created_by_name FROM cash_payments cp LEFT JOIN traders t ON cp.trader_id=t.id LEFT JOIN users u ON cp.created_by=u.id WHERE COALESCE(t.is_pinned,0)=0 ORDER BY cp.created_at DESC LIMIT 5`
   ).all();
   const recentTransfers = db.prepare(
-    'SELECT gt.*, tf.name as from_name, tt.name as to_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders tf ON gt.from_trader_id=tf.id LEFT JOIN traders tt ON gt.to_trader_id=tt.id LEFT JOIN users u ON gt.created_by=u.id ORDER BY gt.created_at DESC LIMIT 5'
+    'SELECT gt.*, tf.name as from_name, COALESCE(tt.name, gt.to_external_name) as to_name, u.full_name as created_by_name FROM gold_transfers gt LEFT JOIN traders tf ON gt.from_trader_id=tf.id LEFT JOIN traders tt ON gt.to_trader_id=tt.id LEFT JOIN users u ON gt.created_by=u.id ORDER BY gt.created_at DESC LIMIT 5'
   ).all();
 
   res.json({
