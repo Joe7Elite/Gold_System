@@ -87,15 +87,8 @@ export default function Users() {
     <div className="max-w-3xl pb-4">
       {/* ===== حسابك + تسجيل خروج ===== */}
       <div className="card p-4 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gold-100 to-gold-300 text-gold-900 flex items-center justify-center font-extrabold text-lg shrink-0">
-            {(me?.full_name || me?.username || '?').charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-stone-800 truncate">{me?.full_name}</p>
-            <p className="text-xs text-stone-400 truncate">@{me?.username}</p>
-          </div>
-        </div>
+        <p className="font-bold text-stone-800 truncate">{me?.full_name}</p>
+        <p className="text-xs text-stone-400 truncate">@{me?.username}</p>
         <button
           onClick={logout}
           className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-50 text-red-600 font-bold text-sm active:bg-red-100 transition-colors"
@@ -129,20 +122,13 @@ export default function Users() {
         <div className="space-y-2">
           {users.map((u) => (
             <div key={u.id} className={`card px-4 py-3 ${!u.is_active ? 'opacity-60' : ''}`}>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center font-bold shrink-0">
-                  {(u.full_name || u.username || '?').charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-stone-800 text-sm truncate">{u.full_name || '—'}</p>
-                  <p className="text-xs text-stone-400 truncate">
-                    @{u.username}
-                    <span className="mx-1.5 text-stone-200">•</span>
-                    {u.is_protected ? 'حساب أساسي' : u.role === 'admin' ? 'مدير' : 'مستخدم'}
-                    {!u.is_active && <span className="text-red-500"> • موقوف</span>}
-                  </p>
-                </div>
-              </div>
+              <p className="font-bold text-stone-800 text-sm truncate">{u.full_name || '—'}</p>
+              <p className="text-xs text-stone-400 truncate">
+                @{u.username}
+                <span className="mx-1.5 text-stone-200">•</span>
+                {u.is_protected ? 'حساب أساسي' : u.role === 'admin' ? 'مدير' : 'مستخدم'}
+                {!u.is_active && <span className="text-red-500"> • موقوف</span>}
+              </p>
 
               {!u.is_protected && (
                 <div className="flex items-center gap-2 mt-3">

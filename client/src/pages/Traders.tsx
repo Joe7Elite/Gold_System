@@ -142,9 +142,6 @@ export default function Traders() {
               <div key={t.id} className="card overflow-hidden hover:shadow-card transition-shadow">
                 <div className="flex items-stretch">
                   <Link to={`/traders/${t.id}`} className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-100 to-gold-300 text-gold-900 flex items-center justify-center font-extrabold shrink-0">
-                      {(t.name || '?').trim().charAt(0)}
-                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-stone-800 truncate">{t.name}</p>
                       <div className="flex items-center gap-2 mt-0.5 text-[13px] font-bold">

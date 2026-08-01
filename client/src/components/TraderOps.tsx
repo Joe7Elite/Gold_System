@@ -474,9 +474,6 @@ function LockedTrader({ trader, label = 'التاجر' }: { trader: any; label?:
   const base = Number(trader?.base_karat) === 18 ? 18 : 21;
   return (
     <div className="flex items-center gap-3 rounded-xl bg-stone-50 border border-stone-200 px-3.5 py-2.5">
-      <div className="w-8 h-8 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center font-extrabold text-sm shrink-0">
-        {(trader?.name || '?').trim().charAt(0)}
-      </div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-stone-400 leading-none mb-0.5">{label}</p>
         <p className="font-bold text-stone-800 text-sm truncate">{trader?.name || '—'}</p>
